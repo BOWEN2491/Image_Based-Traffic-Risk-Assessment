@@ -165,10 +165,18 @@ def test_cli_parser_and_workflow_errors(tmp_path):
         "predict", "download-models", "build-features", "generate-weak-labels",
         "train-risk", "train-traffic-light", "build-local-manifest", "review-roi", "merge-review",
     }
-    with pytest.raises(SystemExit, match="local bundle manifest"):
-        main(["build-local-manifest"])
+    with pytest.raises(FileNotFoundError):
+        main(["build-local-manifest", "--model-dir", str(tmp_path / "missing"), "--output", str(tmp_path / "m.json")])
     with pytest.raises(FileNotFoundError):
         main(["predict", str(tmp_path / "missing.png")])
+    model_dir = tmp_path / "models"
+    for relative in ("yolo/yolo11n.pt", "cnn/best_model.pth", "cnn/class_indices.json", "risk/risk_xgb.ubj", "risk/feature_order.json", "risk/model_metadata.json"):
+        path = model_dir / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b"x")
+    output = tmp_path / "manifest.json"
+    assert main(["build-local-manifest", "--model-dir", str(model_dir), "--output", str(output)]) == 0
+    assert json.loads(output.read_text())["schema_version"] == "2.0.0"
 
 
 def test_new_api_validation_helpers(tmp_path):

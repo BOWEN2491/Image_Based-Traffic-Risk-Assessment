@@ -5,6 +5,7 @@ import argparse
 import json
 import pandas as pd
 import sys
+import hashlib
 from pathlib import Path
 
 from .config import Settings
@@ -27,7 +28,12 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
-    args = build_parser().parse_args(argv)
+    raw = list(argv if argv is not None else sys.argv[1:])
+    command = raw[0] if raw else None
+    if command and command != "predict":
+        args = argparse.Namespace(command=command, args=raw[1:])
+    else:
+        args = build_parser().parse_args(argv)
     if args.command != "predict":
         forwarded = list(getattr(args, "args", []))
         if args.command == "generate-weak-labels":
@@ -47,10 +53,27 @@ def main(argv: list[str] | None = None) -> int:
             "review-roi": "src.review_roi_labeler",
             "merge-review": "src.merge_review_back",
         }
+        if args.command == "build-local-manifest":
+            parser = argparse.ArgumentParser(prog="traffic-risk build-local-manifest")
+            parser.add_argument("--model-dir", type=Path, required=True)
+            parser.add_argument("--output", type=Path, required=True)
+            options = parser.parse_args(forwarded)
+            destinations = (
+                "yolo/yolo11n.pt", "cnn/best_model.pth", "cnn/class_indices.json",
+                "risk/risk_xgb.ubj", "risk/feature_order.json", "risk/model_metadata.json",
+            )
+            assets = []
+            for relative in destinations:
+                path = options.model_dir / relative
+                if not path.is_file():
+                    raise FileNotFoundError(path)
+                digest = hashlib.sha256(path.read_bytes()).hexdigest()
+                assets.append({"path": relative, "size": path.stat().st_size, "sha256": digest})
+            options.output.parent.mkdir(parents=True, exist_ok=True)
+            options.output.write_text(json.dumps({"contract": "traffic-risk", "schema_version": "2.0.0", "distribution_status": "local", "assets": assets}, indent=2), encoding="utf-8")
+            return 0
         if args.command == "download-models":
             from tools.download_models import main as workflow_main
-        elif args.command == "build-local-manifest":
-            raise SystemExit("build-local-manifest requires a local bundle manifest generator")
         else:
             module_name = modules[args.command]
             module = __import__(module_name, fromlist=["main"])
