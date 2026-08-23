@@ -6,6 +6,12 @@ build-backend = "setuptools.build_meta"
 name = "image-based-traffic-risk-assessment"
 version = "0.2.0"
 description = "Research demo for image-based traffic scene risk assessment"
+readme = "README.md"
+authors = [{name = "Bowen Zheng", email = "zbowen159@gmail.com"}]
+maintainers = [{name = "Bowen Zheng", email = "zbowen159@gmail.com"}]
+keywords = ["computer vision", "traffic risk", "weak supervision", "research"]
+classifiers = ["Development Status :: 4 - Beta", "Programming Language :: Python :: 3.11", "Programming Language :: Python :: 3.12"]
+urls = {Homepage = "https://github.com/BOWEN2491/Image_Based-Traffic-Risk-Assessment", Documentation = "https://github.com/BOWEN2491/Image_Based-Traffic-Risk-Assessment/tree/main/docs", Issues = "https://github.com/BOWEN2491/Image_Based-Traffic-Risk-Assessment/issues", Changelog = "https://github.com/BOWEN2491/Image_Based-Traffic-Risk-Assessment/blob/main/CHANGELOG.md"}
 requires-python = ">=3.11,<3.13"
 license = "AGPL-3.0-only"
 dependencies = [
