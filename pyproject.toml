@@ -54,7 +54,7 @@ package-dir = {"" = "src"}
 traffic_risk = ["model_manifest.json"]
 
 [tool.pytest.ini_options]
-addopts = "--strict-markers --cov=src --cov-report=term-missing"
+addopts = "--strict-markers --cov=src --cov-report=term-missing --cov-fail-under=80"
 testpaths = ["tests"]
 
 [tool.ruff]
