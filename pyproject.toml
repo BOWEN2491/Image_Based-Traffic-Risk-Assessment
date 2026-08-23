@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "image-based-traffic-risk-assessment"
-version = "0.2.0"
+version = "0.2.1"
 description = "Research demo for image-based traffic scene risk assessment"
 readme = "README.md"
 authors = [{name = "Bowen Zheng", email = "zbowen159@gmail.com"}]

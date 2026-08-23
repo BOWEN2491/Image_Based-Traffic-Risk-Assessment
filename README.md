@@ -1,6 +1,6 @@
 # Image-Based Traffic Risk Assessment
 
-> **v0.1.0 withdrawn:** the historical model release is retained for audit but is not downloadable or loadable. See [docs/MODELS.md](docs/MODELS.md) for the provenance and contract limitations. No BDD100K-derived weights are redistributed by this source-only fix.
+> **v0.2.1 maintenance release:** the public runtime defaults to `RISK_MODE=rules`. The withdrawn v0.1.0 assets remain retained for audit, while BDD100K-derived CNN/XGBoost weights remain local-only and are not redistributed. See [docs/MODELS.md](docs/MODELS.md) for the asset contract and provenance limits.
 
 An open research and teaching demo that estimates a coarse scene-risk category from a single road image. The pipeline combines YOLO object detection, a traffic-light colour classifier, structured scene features, deterministic rules, and an XGBoost classifier behind a FastAPI API and React interface.
 
@@ -19,7 +19,7 @@ The included risk model was trained from **weak labels derived from heuristics**
 
 ## Quick start (CPU)
 
-Requirements: Python 3.11, Node.js 20.19+ (or 22.12+) for the optional web UI, and Git.
+Requirements: Python 3.11 or 3.12, Node.js 20.19+ (or 22.12+) for the optional web UI, and Git.
 
 ```bash
 git clone https://github.com/BOWEN2491/Image_Based-Traffic-Risk-Assessment.git
@@ -45,10 +45,10 @@ On Windows or Linux, install the shared CPU lock, then retrieve the release mode
 python -m pip install --upgrade pip
 python -m pip install --no-deps -r requirements-cpu.lock
 python -m pip install --no-deps -e .
-python -m tools.download_models
+traffic-risk download-models
 ```
 
-`requirements-cpu.lock` is the fully resolved Python 3.11 runtime dependency set shared by Windows and Linux CI. It uses the official PyTorch CPU wheel index, the official CPU-only `xgboost-cpu==3.2.0` distribution, and the single OpenCV distribution required by both this project and Ultralytics. Install the lock and editable project with `--no-deps` to preserve that exact resolved environment.
+`requirements-cpu.lock` is the fully resolved CPU runtime dependency set used by Windows and Linux CI for Python 3.11 and 3.12. It uses the official PyTorch CPU wheel index, the official CPU-only `xgboost-cpu==3.2.0` distribution, and the single OpenCV distribution required by both this project and Ultralytics. Install the lock and editable project with `--no-deps` to preserve that exact resolved environment.
 
 The shared CPU lock does not target macOS or other platforms. There, install from project metadata instead; the platform marker selects the official full `xgboost==3.2.0` distribution while preserving the same `import xgboost` API:
 
@@ -56,10 +56,10 @@ The shared CPU lock does not target macOS or other platforms. There, install fro
 python -m pip install --upgrade pip
 python -m pip install -e .
 python -m pip check
-python -m tools.download_models
+traffic-risk download-models
 ```
 
-The downloader reads its packaged, versioned asset manifest and refuses files whose size or SHA-256 does not match. The runtime repeats exact size and SHA-256 verification for all six assets before loading any checkpoint. Model binaries, BDD100K images, generated predictions, and training outputs are intentionally excluded from Git. See [docs/MODELS.md](docs/MODELS.md) for the asset trust and compatibility rules.
+The downloader reads its packaged, versioned asset manifest and refuses files whose size or SHA-256 does not match. In the public rules mode, only the manifest-declared YOLO asset is required; local models mode additionally verifies the complete six-asset bundle before loading any checkpoint. Model binaries, BDD100K images, generated predictions, and training outputs are intentionally excluded from Git. See [docs/MODELS.md](docs/MODELS.md) for the asset trust and compatibility rules.
 
 Run one image through the command-line pipeline:
 
@@ -91,11 +91,15 @@ A successful inference returns HTTP 200:
 ```json
 {
   "status": "ok",
-  "risk": "medium",
+  "risk": "high",
   "image_id": "c6d0d74c-9af3-4d31-8f9e-51f9ca7b9380",
-  "reason": "model prediction",
+  "reason": "Conservative rule triggered",
   "features": {},
-  "model_versions": {}
+  "model_versions": {
+    "mode": "rules",
+    "feature_schema": "2.0.0",
+    "yolo": "yolo11n"
+  }
 }
 ```
 
@@ -108,7 +112,11 @@ An image that cannot support a defensible estimate also returns HTTP 200, but ne
   "image_id": "c6d0d74c-9af3-4d31-8f9e-51f9ca7b9380",
   "reason": "perception produced no usable detections",
   "features": {},
-  "model_versions": {}
+  "model_versions": {
+    "mode": "rules",
+    "feature_schema": "2.0.0",
+    "yolo": "yolo11n"
+  }
 }
 ```
 
@@ -126,6 +134,8 @@ Default upload limits are 10 MiB and 20 megapixels. Default CORS access is `http
 | `RISK_BUSY_TIMEOUT_SECONDS` | `0.1` | Wait before returning busy/503 |
 | `RISK_CORS_ORIGINS` | `http://localhost:5173` | Comma-separated allowed origins |
 | `RISK_DEVICE` | `cpu` | Torch device such as `cpu` or `cuda:0` |
+| `RISK_MODE` | `rules` | Public conservative rules mode; set `models` only for a fully verified local bundle |
+| `RISK_MODEL_MANIFEST` | packaged manifest | Optional local manifest path; required when `RISK_MODE=models` |
 
 ## Web interface
 
@@ -143,7 +153,7 @@ The development server proxies API requests by default. Set `VITE_API_BASE_URL` 
 
 This repository does **not** redistribute BDD100K images or annotations. Obtain the dataset from its official provider and accept the applicable data terms yourself. The BSD-3-Clause license of the BDD100K tooling repository does not automatically grant redistribution rights for the dataset. See [docs/DATA.md](docs/DATA.md).
 
-Training utilities are retained for research, but v0.1.0 guarantees inference reproducibility only. Reproducing model training requires independently obtained data, the documented schema, fixed seeds, and review of the weak-label process.
+Training utilities are retained for research and local retraining only. The public v0.2.x rules mode is reproducible with the published YOLO asset and contract metadata; CNN/XGBoost results require independently obtained data, the documented schema, fixed seeds, and review of the weak-label process. Local model bundles must never be committed or uploaded to a public Release.
 
 Install the optional training dependencies with `python -m pip install -e ".[training]"`. The training extra includes scikit-learn and joblib for historical data utilities, but runtime model loading accepts only the verified native XGBoost UBJ artifact.
 
@@ -156,6 +166,11 @@ python -m compileall -q src tests tools
 ruff check src tests tools
 pytest --cov=src --cov-report=term-missing --cov-fail-under=80
 
+# Runtime/API gate (the CI equivalent requires at least 85% coverage)
+pytest tests/test_app.py tests/test_model_tools.py tests/test_predict_pipeline.py tests/test_traffic_risk_package.py \
+  -o addopts="--strict-markers" --cov=traffic_risk.app --cov=traffic_risk.model_runtime \
+  --cov=traffic_risk.pipeline --cov-report=term-missing --cov-fail-under=85
+
 cd risk_frontend
 npm ci
 npm run lint
@@ -163,7 +178,7 @@ npm test
 npm run build
 ```
 
-Ordinary CI uses mocks and synthetic images and does not download release models. A separate manual smoke workflow may exercise real models.
+Ordinary CI uses mocks and synthetic images and does not download release models. To verify a real public rules installation, run `traffic-risk smoke-rules --model-dir ./models`; this downloads and verifies the public YOLO asset, checks `/ready`, and exercises `/api/predict`. The smoke must report `mode=rules` and never infer `low` or `medium` solely because local CNN/XGBoost assets are absent.
 
 ## Project layout
 

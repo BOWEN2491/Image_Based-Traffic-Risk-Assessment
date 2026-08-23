@@ -11,6 +11,7 @@ coverage.xml
 htmlcov/
 build/
 dist/
+dist-v021*/
 *.egg-info/
 .venv/
 venv/

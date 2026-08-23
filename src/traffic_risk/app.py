@@ -127,7 +127,7 @@ def create_app(
             LOGGER.exception("Model runtime failed during startup")
         yield
 
-    application = FastAPI(title="Traffic Scene Risk Assessment API", version="0.2.0", lifespan=lifespan)
+    application = FastAPI(title="Traffic Scene Risk Assessment API", version="0.2.1", lifespan=lifespan)
     application.add_middleware(
         CORSMiddleware,
         allow_origins=list(config.cors_origins),

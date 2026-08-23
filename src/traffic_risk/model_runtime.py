@@ -12,6 +12,7 @@ import cv2
 import numpy as np
 
 from .config import Settings
+from .contracts import ModelManifest
 from .schema import MODEL_FEATURES, SCHEMA_VERSION, validate_model_features
 
 
@@ -60,27 +61,36 @@ class ModelRuntime:
     def _verify_manifest(self) -> dict[str, Any]:
         try:
             manifest_path = self.settings.model_manifest or Path(str(MANIFEST))
-            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-            if manifest.get("distribution_status", "").lower() == "withdrawn":
+            model = ModelManifest.from_file(manifest_path)
+            if model.is_withdrawn():
                 raise ModelUnavailableError("This model bundle has been withdrawn and cannot be loaded")
-            if self.settings.mode == "models" and manifest.get("schema_version", manifest.get("feature_schema")) not in {SCHEMA_VERSION, "2.0.0"}:
-                raise ModelUnavailableError("Release manifest feature schema is incompatible")
             if self.settings.mode == "rules":
-                assets = manifest.get("assets", [])
-                yolo_assets = [a for a in assets if a.get("destination", a.get("path")) == "yolo/yolo11n.pt"]
-                if not yolo_assets:
-                    raise ModelUnavailableError("Rules manifest does not contain a YOLO asset")
-                for asset in yolo_assets:
-                    destination = (self.settings.model_dir / asset.get("destination", asset.get("path"))).resolve()
-                    if not destination.is_file() or destination.stat().st_size != asset["size"] or _sha256(destination) != asset["sha256"]:
-                        raise ModelUnavailableError("YOLO asset failed integrity verification")
-                self._versions = {"mode": "rules", "feature_schema": "2.0.0", "yolo": str(manifest.get("model_versions", {}).get("yolo", "validated"))}
-                return manifest
-            versions = manifest["model_versions"]
+                if model.distribution_status != "public":
+                    raise ModelUnavailableError("Rules mode requires a public release manifest")
+                try:
+                    yolo_asset = model.asset("yolo/yolo11n.pt")
+                except KeyError as exc:
+                    raise ModelUnavailableError("Rules manifest does not contain a YOLO asset") from exc
+                destination = (self.settings.model_dir / (yolo_asset.destination or "")).resolve()
+                model_root = self.settings.model_dir.resolve()
+                if destination != model_root and model_root not in destination.parents:
+                    raise ModelUnavailableError("Rules manifest contains an unsafe asset path")
+                if not destination.is_file() or destination.stat().st_size != yolo_asset.size or _sha256(destination) != yolo_asset.sha256:
+                    raise ModelUnavailableError("YOLO asset failed integrity verification")
+                self._versions = {
+                    "mode": "rules",
+                    "feature_schema": model.schema_version,
+                    "yolo": str(model.model_versions.get("yolo", "validated")),
+                }
+                return model.as_dict()
+            if model.distribution_status not in {"local", "public"}:
+                raise ModelUnavailableError("Model mode requires a non-withdrawn manifest")
+            versions = model.model_versions
             if set(versions) != {"yolo", "traffic_light_cnn", "risk_xgb"} or not all(
                 isinstance(value, str) and value for value in versions.values()
             ):
                 raise ModelUnavailableError("Release manifest model versions are invalid")
+            manifest = model.as_dict()
             assets = manifest["assets"]
             destinations = [asset["destination"] for asset in assets]
             if len(destinations) != len(set(destinations)) or set(destinations) != EXPECTED_DESTINATIONS:
@@ -98,7 +108,7 @@ class ModelRuntime:
             self._versions = {
                 "mode": "models",
                 "release": manifest.get("release", "local"),
-                "feature_schema": manifest.get("schema_version", manifest.get("feature_schema", SCHEMA_VERSION)),
+                "feature_schema": model.schema_version,
                 **versions,
             }
             return manifest

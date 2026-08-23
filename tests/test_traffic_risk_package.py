@@ -37,7 +37,7 @@ def _settings(tmp_path: Path, **changes) -> Settings:
 def test_contracts_schema_and_settings(tmp_path, monkeypatch):
     asset = AssetRecord(path="x", size=0, sha256="a" * 64)
     assert asset.size == 0
-    manifest = ModelManifest(assets={"x": asset}, distribution_status="withdrawn")
+    manifest = ModelManifest(assets=[asset], distribution_status="withdrawn")
     assert manifest.is_withdrawn()
     assert ModelMetadata(feature_order=list(MODEL_FEATURES)).schema_version == "2.0.0"
     assert Settings(model_dir=tmp_path).yolo_path.name == "yolo11n.pt"
@@ -48,6 +48,21 @@ def test_contracts_schema_and_settings(tmp_path, monkeypatch):
     monkeypatch.setenv("RISK_MODE", "models")
     monkeypatch.setenv("RISK_MODEL_MANIFEST", str(tmp_path / "manifest.json"))
     assert Settings().mode == "models"
+
+
+@pytest.mark.parametrize("destination", ["../escape.pt", "C:/escape.pt", "/absolute.pt"])
+def test_manifest_rejects_unsafe_asset_paths(destination):
+    with pytest.raises(ValueError, match="inside the model directory"):
+        ModelManifest(
+            distribution_status="local",
+            assets=[AssetRecord(destination=destination, size=1, sha256="a" * 64)],
+        )
+
+
+def test_manifest_rejects_duplicate_assets():
+    record = {"destination": "yolo/yolo11n.pt", "size": 1, "sha256": "a" * 64}
+    with pytest.raises(ValueError, match="duplicate"):
+        ModelManifest(distribution_status="local", assets=[record, record])
 
 
 def test_feature_extraction_and_validation(tmp_path):
@@ -113,7 +128,7 @@ def test_model_runtime_manifest_rules_and_failures(tmp_path):
     asset.write_bytes(b"weights")
     digest = hashlib.sha256(b"weights").hexdigest()
     manifest = tmp_path / "manifest.json"
-    manifest.write_text(json.dumps({"schema_version": "2.0.0", "model_versions": {"yolo": "test"}, "assets": [{"destination": "yolo/yolo11n.pt", "size": 7, "sha256": digest}]}))
+    manifest.write_text(json.dumps({"release": "test", "distribution_status": "public", "contract": "traffic-risk", "schema_version": "2.0.0", "model_versions": {"yolo": "test"}, "assets": [{"destination": "yolo/yolo11n.pt", "size": 7, "sha256": digest}]}))
     runtime = ModelRuntime(_settings(tmp_path, model_manifest=manifest))
     loaded = runtime._verify_manifest()
     assert loaded["schema_version"] == "2.0.0" and runtime.versions["mode"] == "rules"
@@ -123,8 +138,74 @@ def test_model_runtime_manifest_rules_and_failures(tmp_path):
         ModelRuntime(_settings(tmp_path, model_manifest=bad))._verify_manifest()
     missing = tmp_path / "missing.json"
     missing.write_text(json.dumps({"assets": []}))
+    with pytest.raises(ModelUnavailableError, match="invalid"):
+        ModelRuntime(_settings(tmp_path, model_manifest=missing))._verify_manifest()
+
+
+def test_model_runtime_rejects_nonpublic_rules_and_invalid_model_versions(tmp_path):
+    asset = tmp_path / "models" / "yolo" / "yolo11n.pt"
+    asset.parent.mkdir(parents=True)
+    asset.write_bytes(b"weights")
+    digest = hashlib.sha256(b"weights").hexdigest()
+    local_manifest = tmp_path / "local.json"
+    local_manifest.write_text(json.dumps({
+        "distribution_status": "local", "contract": "traffic-risk", "schema_version": "2.0.0",
+        "assets": [{"destination": "yolo/yolo11n.pt", "size": 7, "sha256": digest}],
+    }))
+    with pytest.raises(ModelUnavailableError, match="public"):
+        ModelRuntime(_settings(tmp_path, model_manifest=local_manifest))._verify_manifest()
+
+    invalid_versions = tmp_path / "versions.json"
+    invalid_versions.write_text(json.dumps({
+        "distribution_status": "local", "contract": "traffic-risk", "schema_version": "2.0.0",
+        "model_versions": {"yolo": "only"},
+        "assets": [{"destination": "yolo/yolo11n.pt", "size": 7, "sha256": digest}],
+    }))
+    with pytest.raises(ModelUnavailableError, match="model versions"):
+        ModelRuntime(_settings(tmp_path, mode="models", model_manifest=invalid_versions))._verify_manifest()
+
+
+def test_model_runtime_rules_missing_or_tampered_yolo(tmp_path):
+    root = tmp_path / "models"
+    asset = root / "yolo" / "yolo11n.pt"
+    asset.parent.mkdir(parents=True)
+    asset.write_bytes(b"weights")
+    digest = hashlib.sha256(b"weights").hexdigest()
+    missing = tmp_path / "no-yolo.json"
+    missing.write_text(json.dumps({
+        "distribution_status": "public", "contract": "traffic-risk", "schema_version": "2.0.0",
+        "assets": [{"destination": "risk/other.ubj", "size": 1, "sha256": "a" * 64}],
+    }))
     with pytest.raises(ModelUnavailableError, match="YOLO"):
         ModelRuntime(_settings(tmp_path, model_manifest=missing))._verify_manifest()
+
+    tampered = tmp_path / "tampered.json"
+    tampered.write_text(json.dumps({
+        "distribution_status": "public", "contract": "traffic-risk", "schema_version": "2.0.0",
+        "assets": [{"destination": "yolo/yolo11n.pt", "size": 99, "sha256": digest}],
+    }))
+    with pytest.raises(ModelUnavailableError, match="integrity"):
+        ModelRuntime(_settings(tmp_path, model_manifest=tampered))._verify_manifest()
+
+
+def test_model_runtime_models_missing_asset_fails_closed(tmp_path):
+    root = tmp_path / "models"
+    destinations = ["yolo/yolo11n.pt", "cnn/best_model.pth", "cnn/class_indices.json", "risk/risk_xgb.ubj", "risk/feature_order.json", "risk/model_metadata.json"]
+    assets = []
+    for destination in destinations:
+        path = root / destination
+        path.parent.mkdir(parents=True, exist_ok=True)
+        data = destination.encode()
+        path.write_bytes(data)
+        assets.append({"destination": destination, "size": len(data), "sha256": hashlib.sha256(data).hexdigest()})
+    manifest = tmp_path / "manifest.json"
+    manifest.write_text(json.dumps({
+        "distribution_status": "local", "contract": "traffic-risk", "schema_version": "2.0.0",
+        "model_versions": {"yolo": "a", "traffic_light_cnn": "b", "risk_xgb": "c"}, "assets": assets,
+    }))
+    (root / "risk" / "risk_xgb.ubj").unlink()
+    with pytest.raises(ModelUnavailableError, match="missing"):
+        ModelRuntime(_settings(tmp_path, mode="models", model_manifest=manifest))._verify_manifest()
 
 
 def test_model_runtime_prediction_and_detection_errors(tmp_path, monkeypatch):
@@ -165,7 +246,7 @@ def test_cli_parser_and_workflow_errors(tmp_path):
     from traffic_risk.cli import build_parser, main
     assert set(build_parser()._subparsers._group_actions[0].choices) == {
         "predict", "download-models", "build-features", "generate-weak-labels",
-        "train-risk", "train-traffic-light", "build-local-manifest", "review-roi", "merge-review",
+        "train-risk", "train-traffic-light", "build-local-manifest", "review-roi", "merge-review", "smoke-rules",
     }
     with pytest.raises(FileNotFoundError):
         main(["build-local-manifest", "--model-dir", str(tmp_path / "missing"), "--output", str(tmp_path / "m.json")])
@@ -179,6 +260,27 @@ def test_cli_parser_and_workflow_errors(tmp_path):
     output = tmp_path / "manifest.json"
     assert main(["build-local-manifest", "--model-dir", str(model_dir), "--output", str(output)]) == 0
     assert json.loads(output.read_text())["schema_version"] == "2.0.0"
+
+
+def test_rules_smoke_command_contract(monkeypatch, tmp_path):
+    from fastapi import FastAPI
+    from traffic_risk import smoke_rules
+
+    app = FastAPI()
+
+    @app.get("/ready")
+    async def ready():
+        return {"status": "ready", "mode": "rules"}
+
+    @app.post("/api/predict")
+    async def predict():
+        return {"status": "uncertain", "risk": "unknown", "model_versions": {}}
+
+    monkeypatch.setattr(smoke_rules, "download", lambda _path: None)
+    monkeypatch.setattr(smoke_rules, "create_app", lambda _settings: app)
+    result = smoke_rules.smoke(tmp_path / "models")
+    assert result["ready"] == {"status": "ready", "mode": "rules"}
+    assert result["prediction"]["risk"] == "unknown"
 
 
 def test_new_api_validation_helpers(tmp_path):
@@ -239,7 +341,7 @@ def test_runtime_rules_load_and_invalid_prediction(tmp_path, monkeypatch):
     asset.parent.mkdir(parents=True)
     asset.write_bytes(b"weights")
     manifest = tmp_path / "manifest.json"
-    manifest.write_text(json.dumps({"schema_version": "2.0.0", "model_versions": {"yolo": "test"}, "assets": [{"destination": "yolo/yolo11n.pt", "size": 7, "sha256": hashlib.sha256(b"weights").hexdigest()}]}))
+    manifest.write_text(json.dumps({"release": "test", "distribution_status": "public", "contract": "traffic-risk", "schema_version": "2.0.0", "model_versions": {"yolo": "test"}, "assets": [{"destination": "yolo/yolo11n.pt", "size": 7, "sha256": hashlib.sha256(b"weights").hexdigest()}]}))
     monkeypatch.setitem(sys.modules, "ultralytics", types.SimpleNamespace(YOLO=lambda path: {"path": path}))
     runtime = ModelRuntime(_settings(tmp_path, model_manifest=manifest))
     runtime.load()
