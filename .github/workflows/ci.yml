@@ -40,11 +40,11 @@ jobs:
       - name: Runtime and API coverage gate
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11'
         run: >-
-          pytest tests/test_app.py tests/test_model_tools.py tests/test_predict_pipeline.py
-          tests/test_traffic_risk_package.py
-          -o addopts="--strict-markers"
-          --cov=traffic_risk.app --cov=traffic_risk.model_runtime --cov=traffic_risk.pipeline
-          --cov-report=term-missing --cov-report=xml:coverage-runtime.xml --cov-fail-under=85
+          python -c "import cv2, pytest, sys; sys.exit(pytest.main([
+          'tests/test_app.py', 'tests/test_model_tools.py', 'tests/test_predict_pipeline.py',
+          'tests/test_traffic_risk_package.py', '-o', 'addopts=--strict-markers',
+          '--cov=traffic_risk.app', '--cov=traffic_risk.model_runtime', '--cov=traffic_risk.pipeline',
+          '--cov-report=term-missing', '--cov-report=xml:coverage-runtime.xml', '--cov-fail-under=85']))"
       - name: Build and smoke-test wheel outside the source tree
         run: |
           python -m build --wheel
