@@ -1,0 +1,16 @@
+cff-version: 1.2.0
+message: "If you use this research demo, please cite the software release."
+title: "Image-Based Traffic Risk Assessment"
+type: software
+authors:
+  - family-names: "Bowen"
+version: 0.1.0
+date-released: 2026-08-22
+repository-code: "https://github.com/BOWEN2491/Image_Based-Traffic-Risk-Assessment"
+url: "https://github.com/BOWEN2491/Image_Based-Traffic-Risk-Assessment/releases/tag/v0.1.0"
+license: AGPL-3.0-only
+keywords:
+  - computer vision
+  - traffic scene
+  - weak supervision
+  - research demo

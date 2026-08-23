@@ -1,0 +1,85 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "image-based-traffic-risk-assessment"
+version = "0.1.0"
+description = "Research demo for image-based traffic scene risk assessment"
+requires-python = ">=3.11,<3.13"
+license = "AGPL-3.0-only"
+dependencies = [
+  "anyio>=4.8,<5",
+  "fastapi>=0.115,<1",
+  "numpy>=2.0,<3",
+  "opencv-python>=4.10,<6",
+  "pandas>=2.2,<3",
+  "pillow>=11,<13",
+  "pydantic>=2.10,<3",
+  "python-multipart>=0.0.20,<1",
+  "torch>=2.7,<3",
+  "torchvision>=0.22,<1",
+  "ultralytics>=8.3,<9",
+  "uvicorn[standard]>=0.34,<1",
+  "xgboost>=3.0,<4",
+]
+
+[project.optional-dependencies]
+dev = [
+  "build>=1.2,<2",
+  "httpx>=0.28,<1",
+  "pip-audit>=2.9,<3",
+  "pytest>=9.0.3,<10",
+  "pytest-asyncio>=1.0,<2",
+  "pytest-cov>=6,<8",
+  "ruff>=0.11,<1",
+]
+training = [
+  "joblib>=1.4,<2",
+  "scikit-learn>=1.6,<2",
+]
+
+[project.scripts]
+risk-assess = "src.pipeline:main"
+download-risk-models = "tools.download_models:main"
+
+[tool.setuptools.packages.find]
+include = ["src*", "tools*"]
+
+[tool.setuptools.package-data]
+tools = ["model_manifest.json"]
+
+[tool.pytest.ini_options]
+addopts = "--strict-markers --cov=src --cov-report=term-missing --cov-fail-under=80"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+extend-exclude = [
+  "src/merge_review_back.py",
+  "src/final_predict.py",
+  "src/review_roi_labeler.py",
+  "src/train_tl_cnn.py",
+  "src/weak_label.py",
+  "src/yolo_to_bddjson.py",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = ["B008", "E501", "I001"]
+
+[tool.coverage.run]
+omit = [
+  "src/build_XGBoost.py",
+  "src/final_predict.py",
+  "src/merge_review_back.py",
+  "src/predict_tl_color.py",
+  "src/review_roi_labeler.py",
+  "src/temp_feature_count.py",
+  "src/train_tl_cnn.py",
+  "src/weak_label.py",
+  "src/weak_labels_run.py",
+  "src/yolo_to_bddjson.py",
+  "src/tools/*",
+]

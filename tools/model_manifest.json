@@ -1,0 +1,150 @@
+{
+  "release": "v0.1.0",
+  "feature_schema": "1.0.0",
+  "model_versions": {
+    "yolo": "yolo11n",
+    "traffic_light_cnn": "v0.1.0",
+    "risk_xgb": "v0.1.0"
+  },
+  "assets": [
+    {
+      "name": "yolo11n.pt",
+      "destination": "yolo/yolo11n.pt",
+      "url": "https://github.com/BOWEN2491/Image_Based-Traffic-Risk-Assessment/releases/download/v0.1.0/yolo11n.pt",
+      "size": 5613764,
+      "sha256": "0ebbc80d4a7680d14987a577cd21342b65ecfd94632bd9a8da63ae6417644ee1",
+      "origin": "Ultralytics YOLO11n pretrained detection weights",
+      "license": "AGPL-3.0-only; an Ultralytics Enterprise License may provide alternative terms",
+      "format": "Ultralytics PyTorch checkpoint (.pt)",
+      "loader_constraints": {
+        "library": "ultralytics",
+        "version": ">=8.3,<9",
+        "entrypoint": "ultralytics.YOLO",
+        "integrity": "Load only after exact size and SHA-256 verification"
+      }
+    },
+    {
+      "name": "best_model.pth",
+      "destination": "cnn_out/best_model.pth",
+      "url": "https://github.com/BOWEN2491/Image_Based-Traffic-Risk-Assessment/releases/download/v0.1.0/best_model.pth",
+      "size": 44792139,
+      "sha256": "24a04bc5b0cdc807e3c3fb2e8f993f4b9e30e86c571bc0594b19512ee8ab1d3a",
+      "origin": "Project-trained traffic-light color classifier using independently obtained BDD100K-derived ROI labels",
+      "license": "AGPL-3.0-only; BDD100K data is not included and remains subject to its provider's terms",
+      "format": "PyTorch weights-only state_dict (.pth)",
+      "loader_constraints": {
+        "library": "torch/torchvision",
+        "version": "torch>=2.7,<3; torchvision>=0.22,<1",
+        "entrypoint": "torch.load(weights_only=True) followed by strict load_state_dict",
+        "integrity": "Load only after exact size and SHA-256 verification"
+      },
+      "architecture": {
+        "name": "torchvision.models.resnet18",
+        "pretrained_backbone_at_load": false,
+        "input_size": [128, 128],
+        "output_classes": 4
+      },
+      "class_mapping": {
+        "green": 0,
+        "red": 1,
+        "unknown": 2,
+        "yellow": 3
+      }
+    },
+    {
+      "name": "class_indices.json",
+      "destination": "cnn_out/class_indices.json",
+      "url": "https://github.com/BOWEN2491/Image_Based-Traffic-Risk-Assessment/releases/download/v0.1.0/class_indices.json",
+      "size": 59,
+      "sha256": "7ccf7cb028e0ebd7b72f9dca07194da4d8d58a7df1c963e49561c33ff2d0ef2d",
+      "origin": "Class-index mapping emitted by the project traffic-light CNN training pipeline",
+      "license": "AGPL-3.0-only",
+      "format": "UTF-8 JSON object mapping class names to integer indices",
+      "loader_constraints": {
+        "required_classes": ["green", "red", "unknown", "yellow"],
+        "indices": "Unique integers 0 through 3",
+        "integrity": "Load only after exact size and SHA-256 verification"
+      }
+    },
+    {
+      "name": "risk_xgb.ubj",
+      "destination": "risk_xgb/risk_xgb.ubj",
+      "url": "https://github.com/BOWEN2491/Image_Based-Traffic-Risk-Assessment/releases/download/v0.1.0/risk_xgb.ubj",
+      "size": 18432414,
+      "sha256": "e04a05b1bd5bb9e159e0f50eee12789cc7dfc703ffd4a25d690ea32daaa122a5",
+      "origin": "Project weak-label risk classifier, converted once from the trusted historical joblib artifact to native XGBoost UBJ",
+      "license": "AGPL-3.0-only",
+      "format": "XGBoost Universal Binary JSON (UBJ)",
+      "loader_constraints": {
+        "library": "xgboost",
+        "version": ">=3.0,<4",
+        "entrypoint": "xgboost.Booster.load_model",
+        "num_features": 11,
+        "forbidden_loaders": ["pickle", "joblib"],
+        "integrity": "Load only after exact size and SHA-256 verification"
+      },
+      "versions": {
+        "training": {
+          "xgboost": "unknown (historical serialized artifact)",
+          "weak_rule": "NA",
+          "hard_rules": "NA"
+        },
+        "conversion_runtime": {
+          "python": "3.11.9",
+          "xgboost": "3.2.0"
+        },
+        "supported_runtime": {
+          "python": ">=3.11,<3.13",
+          "xgboost": ">=3.0,<4"
+        }
+      },
+      "feature_schema": {
+        "version": "1.0.0",
+        "features": [
+          "n_human",
+          "near_person_count",
+          "near_vehicle_count",
+          "max_box_area_person",
+          "max_box_area_vehicle",
+          "sum_box_area_person",
+          "sum_box_area_vehicle",
+          "bottom_half_person_ratio",
+          "center_region_vehicle_ratio",
+          "object_density_per_mp",
+          "mean_overlap_iou"
+        ]
+      }
+    },
+    {
+      "name": "feature_order.json",
+      "destination": "risk_xgb/feature_order.json",
+      "url": "https://github.com/BOWEN2491/Image_Based-Traffic-Risk-Assessment/releases/download/v0.1.0/feature_order.json",
+      "size": 276,
+      "sha256": "c353f522436958d4b3c804212ad3e92063ab5cc716b46b89e9e51d66a1dfb474",
+      "origin": "Feature order exported by the project weak-label XGBoost training pipeline",
+      "license": "AGPL-3.0-only",
+      "format": "UTF-8 JSON array of feature names",
+      "loader_constraints": {
+        "schema_version": "1.0.0",
+        "feature_count": 11,
+        "ordering": "Must match src.schema.MODEL_FEATURES exactly",
+        "integrity": "Load only after exact size and SHA-256 verification"
+      }
+    },
+    {
+      "name": "model_metadata.json",
+      "destination": "risk_xgb/model_metadata.json",
+      "url": "https://github.com/BOWEN2491/Image_Based-Traffic-Risk-Assessment/releases/download/v0.1.0/model_metadata.json",
+      "size": 869,
+      "sha256": "c236bd702c8467ab603368386cd282fa2d2baa8d2fa2f322aa35286ba9f5ac32",
+      "origin": "Metadata exported alongside the project weak-label XGBoost training artifact",
+      "license": "AGPL-3.0-only",
+      "format": "UTF-8 JSON object",
+      "loader_constraints": {
+        "purpose": "Informational provenance only; not executable model input",
+        "feature_contract": "train_cols_nosignal must match feature schema 1.0.0",
+        "integrity": "Load only after exact size and SHA-256 verification"
+      }
+    }
+  ]
+}

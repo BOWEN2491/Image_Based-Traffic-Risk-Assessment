@@ -1,0 +1,36 @@
+name: Model behaviour report
+description: Document an inference limitation or reproducible abstention/prediction issue.
+title: "[Model]: "
+labels: [model-behavior]
+body:
+  - type: markdown
+    attributes:
+      value: Model output is not a safety assessment. Share only images you have permission to publish.
+  - type: input
+    id: versions
+    attributes:
+      label: Code and model versions
+      description: Include the commit/tag and model versions from the API response.
+    validations:
+      required: true
+  - type: textarea
+    id: observation
+    attributes:
+      label: Observed behaviour
+      description: Include status, risk, reason, and relevant non-sensitive feature values.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Research expectation
+      description: Explain the expected demo behaviour without presenting it as driving guidance.
+    validations:
+      required: true
+  - type: checkboxes
+    id: rights
+    attributes:
+      label: Data rights
+      options:
+        - label: I have permission to publish every attached image and annotation.
+          required: true

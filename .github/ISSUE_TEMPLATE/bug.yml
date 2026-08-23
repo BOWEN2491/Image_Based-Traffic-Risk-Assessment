@@ -1,0 +1,57 @@
+name: Bug report
+description: Report reproducible software behaviour that differs from the documented contract.
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Do not include private images, credentials, restricted datasets, or unpatched security details.
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      placeholder: v0.1.0 or commit SHA
+    validations:
+      required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - Python CLI/pipeline
+        - FastAPI service
+        - React frontend
+        - Model downloader/assets
+        - Documentation or packaging
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction steps
+      description: Include the smallest safe reproduction and relevant command output.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Python/Node versions, CPU/GPU, and installation method.
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
+      options:
+        - label: I have removed secrets, local paths, personal images, and restricted data.
+          required: true
+        - label: This report does not ask to use the project for a safety-critical decision.
+          required: true
