@@ -329,3 +329,41 @@ def test_xgb_training_rejects_incomplete_classes(tmp_path):
     with pytest.raises(ValueError, match="exactly classes"):
         train(csv_path, tmp_path / "out")
 
+
+def test_xgb_training_manifest_roundtrip(tmp_path):
+    import pandas as pd
+    import xgboost as xgb
+    from src.build_XGBoost import train
+    rows = []
+    for label in range(3):
+        for index in range(4):
+            row = dict.fromkeys(MODEL_FEATURES, float(index + label))
+            row["n_human"] = float(label * 3 + index)
+            row["risk_weak"] = label
+            rows.append(row)
+    csv_path = tmp_path / "features.csv"
+    output = tmp_path / "risk"
+    pd.DataFrame(rows).to_csv(csv_path, index=False)
+    train(csv_path, output)
+    assert (output / "risk_xgb.ubj").is_file()
+    assert (output / "model_metadata.json").is_file()
+    booster = xgb.Booster()
+    booster.load_model(output / "risk_xgb.ubj")
+    matrix = xgb.DMatrix([[0.0] * len(MODEL_FEATURES)], feature_names=list(MODEL_FEATURES))
+    assert booster.predict(matrix).size == 3
+
+
+def test_cnn_synthetic_train_reload_artifacts(tmp_path, monkeypatch):
+    from src import train_tl_cnn
+    data = tmp_path / "roi"
+    for label in ("red", "green"):
+        folder = data / label
+        folder.mkdir(parents=True)
+        for index in range(4):
+            Image.new("RGB", (32, 32), (index * 30, 0, 0) if label == "red" else (0, index * 30, 0)).save(folder / f"{index}.png")
+    output = tmp_path / "cnn"
+    monkeypatch.setattr(sys, "argv", ["train_tl_cnn", "--data-dir", str(data), "--out-dir", str(output), "--model", "simple", "--no-pretrained", "--epochs", "1", "--batch-size", "2", "--img-size", "32"])
+    train_tl_cnn.main()
+    assert (output / "best_model.pth").is_file()
+    assert (output / "model_metadata.json").is_file()
+
