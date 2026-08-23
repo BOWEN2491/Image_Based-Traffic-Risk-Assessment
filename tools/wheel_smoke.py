@@ -41,17 +41,17 @@ def verify_installed(python: Path, working: Path) -> None:
     check = (
             "import json; from importlib.metadata import distributions; from importlib.resources import files; "
             "from pathlib import Path; "
-            "from src.config import Settings; "
-            "s=Settings(); m=json.loads(files('tools').joinpath('model_manifest.json').read_text()); "
+            "from traffic_risk.config import Settings; "
+            "s=Settings(); m=json.loads(files('traffic_risk').joinpath('model_manifest.json').read_text()); "
             "assert s.model_dir.resolve() == (Path.cwd() / 'models').resolve(); "
             "assert 'traffic-risk-assessment' in str(s.upload_dir); "
-            "assert m['feature_schema'] == '1.0.0'; "
+            "assert m['feature_schema'] == '2.0.0'; "
             "opencv=sorted(d.metadata['Name'].lower() for d in distributions() if d.metadata['Name'].lower().startswith('opencv-')); "
             "assert opencv == ['opencv-python'], opencv; "
             "print(json.dumps({'model_dir': str(s.model_dir), 'upload_dir': str(s.upload_dir)}))"
     )
     subprocess.run([str(python), "-c", check], check=True, cwd=working)
-    for command in ("risk-assess", "download-risk-models"):
+    for command in ("traffic-risk",):
         executable = scripts / (f"{command}.exe" if os.name == "nt" else command)
         subprocess.run([str(executable), "--help"], check=True, cwd=working)
 
@@ -72,3 +72,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
