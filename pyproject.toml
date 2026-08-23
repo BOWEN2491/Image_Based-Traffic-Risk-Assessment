@@ -57,7 +57,7 @@ include = ["traffic_risk*"]
 package-dir = {"" = "src"}
 
 [tool.setuptools.package-data]
-traffic_risk = ["model_manifest.json"]
+traffic_risk = ["model_manifest.json", "feature_schema.json"]
 
 [tool.pytest.ini_options]
 addopts = "--strict-markers --cov=src --cov-report=term-missing --cov-fail-under=80"
