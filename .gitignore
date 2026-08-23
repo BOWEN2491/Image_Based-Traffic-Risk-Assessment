@@ -1,0 +1,88 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+build/
+dist/
+*.egg-info/
+.venv/
+venv/
+
+# JavaScript
+node_modules/
+risk_frontend/node_modules/
+risk_frontend/dist/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Editors and operating systems
+.vscode/
+.idea/
+*.code-workspace
+.DS_Store
+Thumbs.db
+desktop.ini
+*~
+*.swp
+
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+
+# Data, uploads, outputs, and logs
+data/
+uploads/
+results/
+logs/
+notebooks/
+missing_paths.txt
+*.log
+*.csv
+*.ipynb
+
+# Model and ML artifacts (release assets live outside Git)
+models/
+checkpoints/
+runs/
+weights/
+*.pt
+*.pth
+*.pkl
+*.pickle
+*.joblib
+*.onnx
+*.safetensors
+*.ubj
+
+# Legacy workstation snapshot; the clean-release allowlist uses lock files only
+requirements.txt
+
+# Local archives, handoff bundles, and backups
+*.zip
+*.7z
+*.tar
+*.tar.gz
+*.tgz
+*.bak
+*.backup
+*备份*
+COMMAND_HELP
+
+# Temporary files
+.cache/
+tmp/
+temp/
+work/
