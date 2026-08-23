@@ -181,11 +181,16 @@ def test_new_api_validation_helpers(tmp_path):
         api._validate_image(b"bad", "image/png", 100)
     with pytest.raises(Exception):
         api._validate_image(_image(), "image/jpeg", 100)
+    with pytest.raises(Exception):
+        api._validate_image(_image(), "image/png", 1)
     upload = UploadFile(filename="x.png", file=io.BytesIO(_image()))
     assert asyncio.run(api._read_upload(upload, 5000))
     empty = UploadFile(filename="x.png", file=io.BytesIO(b""))
     with pytest.raises(Exception):
         asyncio.run(api._read_upload(empty, 10))
+    oversized = UploadFile(filename="x.png", file=io.BytesIO(_image()))
+    with pytest.raises(Exception):
+        asyncio.run(api._read_upload(oversized, 1))
 
 
 def test_new_api_predict_success_and_upload_rejections(tmp_path):
