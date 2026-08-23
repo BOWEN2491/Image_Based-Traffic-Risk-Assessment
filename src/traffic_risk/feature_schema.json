@@ -1,0 +1,18 @@
+{
+  "contract": "traffic-risk",
+  "schema_version": "2.0.0",
+  "features": [
+    "n_human",
+    "near_person_count",
+    "near_vehicle_count",
+    "max_box_area_person",
+    "max_box_area_vehicle",
+    "sum_box_area_person",
+    "sum_box_area_vehicle",
+    "bottom_half_person_ratio",
+    "center_region_vehicle_ratio",
+    "object_density_per_mp",
+    "mean_overlap_iou"
+  ],
+  "xgboost_input_count": 11
+}
