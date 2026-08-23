@@ -62,6 +62,7 @@ traffic_risk = ["model_manifest.json"]
 [tool.pytest.ini_options]
 addopts = "--strict-markers --cov=src --cov-report=term-missing --cov-fail-under=80"
 testpaths = ["tests"]
+pythonpath = [".", "src"]
 
 [tool.ruff]
 line-length = 120
