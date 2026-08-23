@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from src.weak_label import WEAK_LABEL_FEATURES, WeakLabelError, generate_weak_label
+from src.traffic_risk.weak_label import WEAK_LABEL_FEATURES, WeakLabelError, generate_weak_label
 
 
 def _frame(rows=6):

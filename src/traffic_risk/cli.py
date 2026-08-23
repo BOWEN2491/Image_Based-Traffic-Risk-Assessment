@@ -41,7 +41,7 @@ def main(argv: list[str] | None = None) -> int:
             parser.add_argument("--input-csv", type=Path, required=True)
             parser.add_argument("--output-csv", type=Path, required=True)
             options = parser.parse_args(forwarded)
-            from src.weak_label import generate_weak_label
+            from .weak_label import generate_weak_label
             result = generate_weak_label(pd.read_csv(options.input_csv))
             options.output_csv.parent.mkdir(parents=True, exist_ok=True)
             result.to_csv(options.output_csv, index=False)
@@ -68,9 +68,9 @@ def main(argv: list[str] | None = None) -> int:
                 if not path.is_file():
                     raise FileNotFoundError(path)
                 digest = hashlib.sha256(path.read_bytes()).hexdigest()
-                assets.append({"path": relative, "size": path.stat().st_size, "sha256": digest})
+                assets.append({"destination": relative, "size": path.stat().st_size, "sha256": digest})
             options.output.parent.mkdir(parents=True, exist_ok=True)
-            options.output.write_text(json.dumps({"contract": "traffic-risk", "schema_version": "2.0.0", "distribution_status": "local", "assets": assets}, indent=2), encoding="utf-8")
+            options.output.write_text(json.dumps({"contract": "traffic-risk", "schema_version": "2.0.0", "distribution_status": "local", "model_versions": {"mode": "models", "feature_schema": "2.0.0"}, "assets": assets}, indent=2), encoding="utf-8")
             return 0
         if args.command == "download-models":
             from tools.download_models import main as workflow_main

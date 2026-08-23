@@ -9,7 +9,7 @@ import hashlib
 import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Iterable
+from collections.abc import Iterable
 
 
 class IdentityConflict(ValueError):

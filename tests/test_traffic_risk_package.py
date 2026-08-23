@@ -9,6 +9,7 @@ import asyncio
 from pathlib import Path
 
 import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from PIL import Image
 
@@ -149,7 +150,8 @@ def test_pipeline_failure_paths(tmp_path):
         settings = type("S", (), {"mode": "models"})()
         def __init__(self, failure=None, result=None): self.failure, self.result = failure, result
         def detect(self, _path):
-            if self.failure: raise self.failure
+            if self.failure:
+                raise self.failure
             return self.result or {"frames": []}
         def predict_risk(self, _features): return "not-a-risk"
     path = tmp_path / "x.png"
@@ -182,22 +184,22 @@ def test_cli_parser_and_workflow_errors(tmp_path):
 def test_new_api_validation_helpers(tmp_path):
     import src.traffic_risk.app as api
     from starlette.datastructures import UploadFile
-    with pytest.raises(Exception):
+    with pytest.raises(HTTPException):
         api._validate_extension("x.gif")
     assert api._magic_format(_image()) == "PNG"
-    with pytest.raises(Exception):
+    with pytest.raises(HTTPException):
         api._validate_image(b"bad", "image/png", 100)
-    with pytest.raises(Exception):
+    with pytest.raises(HTTPException):
         api._validate_image(_image(), "image/jpeg", 100)
-    with pytest.raises(Exception):
+    with pytest.raises(HTTPException):
         api._validate_image(_image(), "image/png", 1)
     upload = UploadFile(filename="x.png", file=io.BytesIO(_image()))
     assert asyncio.run(api._read_upload(upload, 5000))
     empty = UploadFile(filename="x.png", file=io.BytesIO(b""))
-    with pytest.raises(Exception):
+    with pytest.raises(HTTPException):
         asyncio.run(api._read_upload(empty, 10))
     oversized = UploadFile(filename="x.png", file=io.BytesIO(_image()))
-    with pytest.raises(Exception):
+    with pytest.raises(HTTPException):
         asyncio.run(api._read_upload(oversized, 1))
 
 
