@@ -9,10 +9,10 @@ from fastapi.testclient import TestClient
 from PIL import Image
 from starlette.datastructures import UploadFile
 
-from src.app import create_app
-from src import app as app_module
-from src.config import Settings
-from src.model_runtime import ModelUnavailableError
+from traffic_risk.app import create_app
+from traffic_risk import app as app_module
+from traffic_risk.config import Settings
+from traffic_risk.model_runtime import ModelUnavailableError
 
 
 class Runtime:
@@ -52,7 +52,7 @@ def test_health_ready_and_success_use_uuid_and_cleanup(tmp_path):
     app = create_app(settings(tmp_path), Runtime)
     with TestClient(app) as client:
         assert client.get("/health").json() == {"status": "ok"}
-        assert client.get("/ready").json() == {"status": "ready"}
+        assert client.get("/ready").json() == {"status": "ready", "mode": "rules"}
         response = client.post("/api/predict", files={"file": ("../../escape.png", image_bytes(), "image/png")})
     assert response.status_code == 200
     body = response.json()

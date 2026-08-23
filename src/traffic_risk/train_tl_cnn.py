@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 Traffic-Light Color CNN (PyTorch, simple & practical)
 - Dataset: ImageFolder-style folder with subdirs red/yellow/green/unknown
@@ -8,17 +7,15 @@ Traffic-Light Color CNN (PyTorch, simple & practical)
 - Saves: best_model.pth, class_indices.json, training_log.csv
 - Also supports single-image prediction: add --predict "path_to_image"
 
-æœ¬ç‰ˆæ”¹åŠ¨ï¼š
-- é»˜è®¤ batch_size=32ï¼Œepochs=40ï¼ˆé…åˆ early stoppingï¼‰
-- SimpleCNN ä¸­åŠ å…¥ BatchNorm2d + Dropout(0.3)
-- åŠ å…¥ Early Stoppingï¼ˆç›‘æŽ§ val_lossï¼Œpatience=5ï¼‰
+本版改动：
+- 默认 batch_size=32，epochs=40（配合 early stopping）
+- SimpleCNN 中加入 BatchNorm2d + Dropout(0.3)
+- 加入 Early Stopping（监控 val_loss，patience=5）
 """
 from __future__ import annotations
 import argparse
 import json
-import os
 from pathlib import Path
-from typing import List, Tuple
 import time
 import csv
 import random
@@ -37,7 +34,7 @@ def set_seed(seed: int = 42):
 def ensure_dir(p: Path):
     p.mkdir(parents=True, exist_ok=True)
 
-def compute_class_weights(targets: List[int], num_classes: int) -> torch.Tensor:
+def compute_class_weights(targets: list[int], num_classes: int) -> torch.Tensor:
     counts = [0]*num_classes
     for t in targets:
         counts[t] += 1
@@ -47,7 +44,7 @@ def compute_class_weights(targets: List[int], num_classes: int) -> torch.Tensor:
     weights = [w/s*num_classes for w in weights]
     return torch.tensor(weights, dtype=torch.float32)
 
-def build_weighted_sampler(targets: List[int]) -> WeightedRandomSampler:
+def build_weighted_sampler(targets: list[int]) -> WeightedRandomSampler:
     from collections import Counter
     cnt = Counter(targets)
     sample_weights = [1.0/max(1, cnt[t]) for t in targets]
@@ -55,7 +52,7 @@ def build_weighted_sampler(targets: List[int]) -> WeightedRandomSampler:
                                  num_samples=len(sample_weights),
                                  replacement=True)
 
-def split_indices_stratified(targets: List[int], train_ratio=0.8, seed=42):
+def split_indices_stratified(targets: list[int], train_ratio=0.8, seed=42):
     from collections import defaultdict
     buckets = defaultdict(list)
     for idx, t in enumerate(targets):
@@ -74,7 +71,7 @@ def split_indices_stratified(targets: List[int], train_ratio=0.8, seed=42):
     return train_idx, val_idx
 
 class SimpleCNN(nn.Module):
-    """è½»é‡ CNNï¼šConv + BN + ReLU + Pool * 3 + å…¨è¿žæŽ¥ + Dropout"""
+    """轻量 CNN：Conv + BN + ReLU + Pool * 3 + 全连接 + Dropout"""
     def __init__(self, num_classes: int = 4):
         super().__init__()
         self.features = nn.Sequential(
@@ -183,8 +180,8 @@ def main():
         "--out-dir", type=str, required=False, default="cnn_out"
     )
     parser.add_argument("--img-size", type=int, default=128)
-    parser.add_argument("--batch-size", type=int, default=32)  # ä¿®æ”¹ä¸º 32
-    parser.add_argument("--epochs", type=int, default=40)      # è®­ç»ƒä¸Šé™ï¼Œé…åˆ early stopping
+    parser.add_argument("--batch-size", type=int, default=32)  # 修改为 32
+    parser.add_argument("--epochs", type=int, default=40)      # 训练上限，配合 early stopping
     parser.add_argument("--lr", type=float, default=1e-3)
     parser.add_argument(
         "--model",
@@ -201,7 +198,7 @@ def main():
     )
     parser.add_argument("--num-workers", type=int, default=0)
     parser.add_argument("--seed", type=int, default=42)
-    # Early stopping å‚æ•°
+    # Early stopping 参数
     parser.add_argument(
         "--patience",
         type=int,
@@ -225,7 +222,7 @@ def main():
             raise FileNotFoundError(f"Model not found: {model_path}")
         if not mapping_path.exists():
             raise FileNotFoundError(f"Mapping not found: {mapping_path}")
-        with open(mapping_path, "r", encoding="utf-8") as f:
+        with open(mapping_path, encoding="utf-8") as f:
             class_to_idx = json.load(f)
         idx_to_class = {v: k for k, v in class_to_idx.items()}
         num_classes = len(idx_to_class)
@@ -270,7 +267,7 @@ def main():
             f"(expect subfolders red/yellow/green/unknown)"
         )
 
-    # æ•°æ®å¢žå¼ºï¼ˆè®­ç»ƒï¼‰ä¸ŽéªŒè¯å˜æ¢
+    # 数据增强（训练）与验证变换
     train_tfm = transforms.Compose(
         [
             transforms.Resize((args.img_size, args.img_size)),
@@ -298,19 +295,19 @@ def main():
         ]
     )
 
-    # æ•´ä½“æ•°æ®é›†ï¼ˆåªåˆå§‹åŒ–ä¸€æ¬¡ ImageFolderï¼Œå†ç”¨ indices åˆ‡åˆ†ï¼‰
+    # 整体数据集（只初始化一次 ImageFolder，再用 indices 切分）
     full_ds = datasets.ImageFolder(root=str(data_dir))
     class_to_idx = full_ds.class_to_idx
     idx_to_class = {v: k for k, v in class_to_idx.items()}
     print("[Info] Classes:", idx_to_class)
 
-    # ç›®æ ‡æ ‡ç­¾ï¼Œç”¨äºŽåˆ†å±‚åˆ’åˆ† & class weights
+    # 目标标签，用于分层划分 & class weights
     targets = [y for _, y in full_ds.samples]
     train_idx, val_idx = split_indices_stratified(
         targets, train_ratio=0.85, seed=args.seed
     )
 
-    # é‡æ–°å°è£… train / val ä¸º Subset + å„è‡ªçš„ transform
+    # 重新封装 train / val 为 Subset + 各自的 transform
     train_base = datasets.ImageFolder(root=str(data_dir), transform=train_tfm)
     val_base = datasets.ImageFolder(root=str(data_dir), transform=val_tfm)
     train_ds = Subset(train_base, train_idx)
@@ -343,9 +340,6 @@ def main():
     )
     model.to(device)
 
-    class_weights = compute_class_weights(
-        targets, num_classes=num_classes
-    ).to(device)
     # The sampler balances the training stream; validation must remain unweighted.
     criterion = nn.CrossEntropyLoss()
     val_criterion = nn.CrossEntropyLoss()
@@ -354,14 +348,14 @@ def main():
         optimizer, T_max=max(1, args.epochs)
     )
 
-    # æ—¥å¿—æ–‡ä»¶
+    # 日志文件
     log_csv = out_dir / "training_log.csv"
     with log_csv.open("w", newline="", encoding="utf-8") as f:
         csv.writer(f).writerow(
             ["epoch", "train_loss", "train_acc", "val_loss", "val_acc", "lr"]
         )
 
-    # ä¿å­˜ç±»åˆ«æ˜ å°„
+    # 保存类别映射
     with (out_dir / "class_indices.json").open(
         "w", encoding="utf-8"
     ) as fjs:
@@ -394,7 +388,7 @@ def main():
             f"| lr={lr_now:.2e} | {dt:.1f}s"
         )
 
-        # å†™å…¥ CSV æ—¥å¿—
+        # 写入 CSV 日志
         with log_csv.open("a", newline="", encoding="utf-8") as f:
             csv.writer(f).writerow(
                 [
@@ -417,7 +411,7 @@ def main():
                 f"(val_acc={best_val_acc:.3f})"
             )
 
-        # Early stoppingï¼šä»¥ val_loss ä½œä¸ºä¸»è¦ç›‘æŽ§æŒ‡æ ‡
+        # Early stopping：以 val_loss 作为主要监控指标
         if improved:
             best_val_loss = va_loss
             bad_epochs = 0
@@ -461,4 +455,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

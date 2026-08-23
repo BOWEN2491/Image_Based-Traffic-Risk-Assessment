@@ -4,8 +4,8 @@ import math
 
 import pytest
 
-from src.hard_rules import apply_hard_rules, apply_signal_policy
-from src.schema import MODEL_FEATURES, FeatureSchemaError, validate_model_features
+from traffic_risk.hard_rules import apply_hard_rules, apply_signal_policy
+from traffic_risk.schema import MODEL_FEATURES, FeatureSchemaError, validate_model_features
 
 
 def baseline(**changes):

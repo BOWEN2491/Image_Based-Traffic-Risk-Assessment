@@ -10,24 +10,24 @@ from types import ModuleType, SimpleNamespace
 import pytest
 
 from tools import download_models
-from src.config import Settings
-from src import model_runtime
-from src.model_runtime import ModelRuntime, ModelUnavailableError, PerceptionError
-from src.schema import MODEL_FEATURES, SCHEMA_VERSION
+from traffic_risk.config import Settings
+from traffic_risk import model_runtime
+from traffic_risk.model_runtime import ModelRuntime, ModelUnavailableError, PerceptionError
+from traffic_risk.schema import MODEL_FEATURES, SCHEMA_VERSION
 
 
 def _write_runtime_assets(root: Path, *, mapping=None, feature_order=None) -> Path:
     contents = {
         "yolo/yolo11n.pt": b"yolo",
-        "cnn_out/best_model.pth": b"cnn",
-        "cnn_out/class_indices.json": json.dumps(
+        "cnn/best_model.pth": b"cnn",
+        "cnn/class_indices.json": json.dumps(
             mapping or {"green": 0, "red": 1, "unknown": 2, "yellow": 3}
         ).encode(),
-        "risk_xgb/risk_xgb.ubj": b"xgb",
-        "risk_xgb/feature_order.json": json.dumps(
+        "risk/risk_xgb.ubj": b"xgb",
+        "risk/feature_order.json": json.dumps(
             feature_order if feature_order is not None else list(MODEL_FEATURES)
         ).encode(),
-        "risk_xgb/model_metadata.json": json.dumps(
+        "risk/model_metadata.json": json.dumps(
             {"train_cols_nosignal": list(MODEL_FEATURES)}
         ).encode(),
     }
@@ -138,7 +138,7 @@ def test_model_runtime_predicts_with_native_booster_contract(monkeypatch, tmp_pa
             return [[0.05, 0.9, 0.05]]
 
     monkeypatch.setitem(sys.modules, "xgboost", SimpleNamespace(DMatrix=Matrix))
-    runtime = ModelRuntime(Settings(model_dir=tmp_path))
+    runtime = ModelRuntime(Settings(model_dir=tmp_path, mode="models", model_manifest=tmp_path / "manifest.json"))
     runtime.booster = Booster()
     features = dict.fromkeys(MODEL_FEATURES, 0.0)
 
@@ -153,7 +153,7 @@ def test_model_runtime_rejects_malformed_booster_output(monkeypatch, tmp_path):
             return [0.25, 0.75]
 
     monkeypatch.setitem(sys.modules, "xgboost", SimpleNamespace(DMatrix=lambda *_args, **_kwargs: object()))
-    runtime = ModelRuntime(Settings(model_dir=tmp_path))
+    runtime = ModelRuntime(Settings(model_dir=tmp_path, mode="models", model_manifest=tmp_path / "manifest.json"))
     runtime.booster = Booster()
 
     with pytest.raises(PerceptionError, match="invalid prediction"):
@@ -165,14 +165,14 @@ def test_runtime_rejects_tampered_asset_before_loading(monkeypatch, tmp_path):
     monkeypatch.setattr(model_runtime, "MANIFEST", manifest)
     (tmp_path / "yolo/yolo11n.pt").write_bytes(b"tampered")
     with pytest.raises(ModelUnavailableError, match="integrity"):
-        ModelRuntime(Settings(model_dir=tmp_path)).load()
+        ModelRuntime(Settings(model_dir=tmp_path, mode="models", model_manifest=manifest)).load()
 
 
 def test_runtime_rejects_wrong_feature_order_before_loading(monkeypatch, tmp_path):
     manifest = _write_runtime_assets(tmp_path, feature_order=list(reversed(MODEL_FEATURES)))
     monkeypatch.setattr(model_runtime, "MANIFEST", manifest)
     with pytest.raises(ModelUnavailableError, match="feature order"):
-        ModelRuntime(Settings(model_dir=tmp_path)).load()
+        ModelRuntime(Settings(model_dir=tmp_path, mode="models", model_manifest=manifest)).load()
 
 
 def test_runtime_rejects_duplicate_class_index_before_loading(monkeypatch, tmp_path):
@@ -182,7 +182,7 @@ def test_runtime_rejects_duplicate_class_index_before_loading(monkeypatch, tmp_p
     )
     monkeypatch.setattr(model_runtime, "MANIFEST", manifest)
     with pytest.raises(ModelUnavailableError, match="class mapping"):
-        ModelRuntime(Settings(model_dir=tmp_path)).load()
+        ModelRuntime(Settings(model_dir=tmp_path, mode="models", model_manifest=manifest)).load()
 
 
 def test_runtime_loads_verified_contract_with_fake_libraries(monkeypatch, tmp_path):
@@ -230,9 +230,10 @@ def test_runtime_loads_verified_contract_with_fake_libraries(monkeypatch, tmp_pa
     monkeypatch.setitem(sys.modules, "torchvision", SimpleNamespace(models=fake_models, transforms=fake_transforms))
     monkeypatch.setitem(sys.modules, "ultralytics", SimpleNamespace(YOLO=lambda path: ("yolo", path)))
 
-    runtime = ModelRuntime(Settings(model_dir=tmp_path))
+    runtime = ModelRuntime(Settings(model_dir=tmp_path, mode="models", model_manifest=manifest))
     runtime.load()
     assert runtime.versions == {
+        "mode": "models",
         "release": "v0.1.0",
         "feature_schema": SCHEMA_VERSION,
         "yolo": "yolo11n",

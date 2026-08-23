@@ -4,8 +4,8 @@ from pathlib import Path
 
 from PIL import Image
 
-from src.model_runtime import PerceptionError
-from src.pipeline import run_single_image
+from traffic_risk.model_runtime import PerceptionError
+from traffic_risk.pipeline import run_single_image
 
 
 class Runtime:

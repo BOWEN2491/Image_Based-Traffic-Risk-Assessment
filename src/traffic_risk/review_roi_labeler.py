@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 ROI Labeled Review Tool (keyboard-driven with OpenCV).
 
@@ -32,15 +31,14 @@ import cv2
 import numpy as np
 import csv
 import os
-from typing import List, Tuple
 
 CLASSES = ["red","yellow","green","unknown"]
 
 def ensure_dir(p: Path) -> None:
     p.mkdir(parents=True, exist_ok=True)
 
-def load_items(root: Path, focus: str | None) -> List[Tuple[Path,str]]:
-    items: List[Tuple[Path,str]] = []
+def load_items(root: Path, focus: str | None) -> list[tuple[Path,str]]:
+    items: list[tuple[Path,str]] = []
     for c in CLASSES:
         cls_dir = root / c
         if not cls_dir.exists():
@@ -52,7 +50,7 @@ def load_items(root: Path, focus: str | None) -> List[Tuple[Path,str]]:
     items.sort(key=lambda x: str(x[0]))
     return items
 
-def draw_info(img: np.ndarray, text_lines: List[str]) -> np.ndarray:
+def draw_info(img: np.ndarray, text_lines: list[str]) -> np.ndarray:
     h, w = img.shape[:2]
     overlay = img.copy()
     y0 = 28
@@ -80,7 +78,7 @@ def move_to(dst_dir: Path, p: Path) -> Path:
     os.replace(str(p), str(new_path))
     return new_path
 
-def save_manifest(root: Path, items_all: List[Tuple[Path,str]], manifest: Path) -> None:
+def save_manifest(root: Path, items_all: list[tuple[Path,str]], manifest: Path) -> None:
     temporary = manifest.with_suffix(manifest.suffix + ".tmp")
     with temporary.open("w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
@@ -91,7 +89,7 @@ def save_manifest(root: Path, items_all: List[Tuple[Path,str]], manifest: Path) 
                 writer.writerow([str(p), lab])
     os.replace(str(temporary), str(manifest))
 
-def main():
+def main():  # pragma: no cover - requires a real OpenCV window
     ap = argparse.ArgumentParser(description="Review & relabel ROI_labeled images (OpenCV).")
     ap.add_argument("--root", type=str, required=True, help="ROI_labeled root folder")
     ap.add_argument("--focus", type=str, default=None, choices=[None, "red","yellow","green","unknown"], nargs='?',
@@ -185,4 +183,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

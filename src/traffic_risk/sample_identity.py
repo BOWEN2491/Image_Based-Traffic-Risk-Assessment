@@ -94,4 +94,3 @@ def assert_destinations_free(destinations: Iterable[Path]) -> None:
     existing = [str(path) for path in destinations if path.exists()]
     if existing:
         raise IdentityConflict(f"Destination already exists: {existing[0]}")
-

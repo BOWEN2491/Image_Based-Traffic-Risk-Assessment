@@ -1,8 +1,8 @@
 import pandas as pd
 import pytest
 
-from src.sample_identity import IdentityConflict, SampleRecord, assert_destinations_free, validate_records
-from src.weak_label import WEAK_LABEL_FEATURES, generate_weak_label
+from traffic_risk.sample_identity import IdentityConflict, SampleRecord, assert_destinations_free, validate_records
+from traffic_risk.weak_label import WEAK_LABEL_FEATURES, generate_weak_label
 
 
 def _frame(n=6):
@@ -28,7 +28,7 @@ def test_weak_label_rejects_invalid_values(bad):
 
 def test_weak_label_rejects_missing_and_small_input():
     frame = _frame(2)
-    with pytest.raises(ValueError, match="At least"):
+    with pytest.raises(ValueError, match="at least"):
         generate_weak_label(frame)
     with pytest.raises(ValueError, match="Missing"):
         generate_weak_label(frame.drop(columns=["n_ts"]))
@@ -45,4 +45,3 @@ def test_identity_detects_conflicting_labels_and_destination(tmp_path):
     target.write_bytes(b"x")
     with pytest.raises(IdentityConflict, match="Destination"):
         assert_destinations_free([target])
-

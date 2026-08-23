@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-import math
 
 import pytest
 
-from src.build_features import compute_features
+from traffic_risk.build_features import compute_features
 
 
 def obj(category, box, color="unknown"):
@@ -12,10 +11,8 @@ def obj(category, box, color="unknown"):
 
 
 def test_empty_scene_has_finite_zero_features():
-    result = compute_features([], 100, 200)
-    assert result["n_human"] == 0
-    assert result["central_tl_color"] == "unknown"
-    assert all(not isinstance(value, float) or math.isfinite(value) for value in result.values())
+    with pytest.raises(ValueError, match="no valid objects"):
+        compute_features([], 100, 200)
 
 
 def test_invalid_and_out_of_bounds_boxes_are_handled():
