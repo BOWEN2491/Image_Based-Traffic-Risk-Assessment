@@ -311,3 +311,13 @@ def test_pipeline_invalid_detector_shapes(tmp_path):
         def predict_risk(self, _features): return "low"
     assert run_single_image(path, Bad())["risk"] == "unknown"
 
+
+def test_xgb_training_rejects_incomplete_classes(tmp_path):
+    import pandas as pd
+    from src.build_XGBoost import train
+    frame = pd.DataFrame([{**dict.fromkeys(MODEL_FEATURES, 0.0), "risk_weak": 0} for _ in range(4)])
+    csv_path = tmp_path / "features.csv"
+    frame.to_csv(csv_path, index=False)
+    with pytest.raises(ValueError, match="exactly classes"):
+        train(csv_path, tmp_path / "out")
+
