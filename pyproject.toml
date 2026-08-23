@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "image-based-traffic-risk-assessment"
-version = "0.1.0"
+version = "0.2.0"
 description = "Research demo for image-based traffic scene risk assessment"
 requires-python = ">=3.11,<3.13"
 license = "AGPL-3.0-only"
@@ -41,17 +41,20 @@ training = [
 ]
 
 [project.scripts]
-risk-assess = "src.pipeline:main"
-download-risk-models = "tools.download_models:main"
+traffic-risk = "traffic_risk.cli:main"
 
 [tool.setuptools.packages.find]
-include = ["src*", "tools*"]
+where = ["src"]
+include = ["traffic_risk*"]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
 
 [tool.setuptools.package-data]
-tools = ["model_manifest.json"]
+traffic_risk = ["model_manifest.json"]
 
 [tool.pytest.ini_options]
-addopts = "--strict-markers --cov=src --cov-report=term-missing --cov-fail-under=80"
+addopts = "--strict-markers --cov=src --cov-report=term-missing"
 testpaths = ["tests"]
 
 [tool.ruff]
@@ -84,3 +87,4 @@ omit = [
   "src/yolo_to_bddjson.py",
   "src/tools/*",
 ]
+

@@ -5,6 +5,9 @@ import "./App.css";
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
 const API_URL = `${API_BASE_URL}/api/predict`;
 const ALLOWED_RISKS = new Set(["low", "medium", "high", "unknown"]);
+const MAX_FILE_BYTES = 10 * 1024 * 1024;
+const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const REQUEST_TIMEOUT_MS = 30_000;
 
 function readErrorMessage(payload, status) {
   const detail = payload?.detail ?? payload?.error?.message ?? payload?.message;
@@ -112,6 +115,16 @@ function App() {
     requestRef.current = null;
     submittingRef.current = false;
 
+    if (selected && (!ALLOWED_TYPES.has(selected.type) || selected.size > MAX_FILE_BYTES)) {
+      setFile(null);
+      setPreviewUrl(null);
+      setError(
+        selected.size > MAX_FILE_BYTES
+          ? "The image must be 10 MiB or smaller."
+          : "Please select a JPEG, PNG, or WebP image.",
+      );
+      return;
+    }
     setFile(selected);
     setPreviewUrl(selected ? URL.createObjectURL(selected) : null);
     setResult(null);
@@ -126,6 +139,7 @@ function App() {
     if (!file || submittingRef.current) return;
 
     const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort("timeout"), REQUEST_TIMEOUT_MS);
     requestRef.current = controller;
     submittingRef.current = true;
     setLoading(true);
@@ -152,12 +166,13 @@ function App() {
       if (requestRef.current === controller) {
         setError(
           requestError.name === "AbortError"
-            ? "Analysis canceled."
+            ? (controller.signal.reason === "timeout" ? "Analysis timed out after 30 seconds." : "Analysis canceled.")
             : requestError.message || "The request failed. Please try again.",
         );
       }
     } finally {
       if (requestRef.current === controller) {
+        clearTimeout(timeout);
         requestRef.current = null;
         submittingRef.current = false;
         setLoading(false);
@@ -196,7 +211,7 @@ function App() {
               <img src={previewUrl} alt={`Preview of ${file.name}`} />
             ) : (
               <div className="empty-preview" aria-hidden="true">
-                <span className="empty-icon">＋</span>
+                <span className="empty-icon">ï¼‹</span>
                 <span>Your image preview will appear here</span>
               </div>
             )}
@@ -232,7 +247,7 @@ function App() {
             </p>
             <div className="actions">
               <button className="primary-button" type="submit" disabled={!file || loading}>
-                {loading ? "Analyzing…" : "Analyze image"}
+                {loading ? "Analyzingâ€¦" : "Analyze image"}
               </button>
               {loading && (
                 <button className="secondary-button" type="button" onClick={cancelAnalysis}>
@@ -246,7 +261,7 @@ function App() {
             {loading && (
               <div className="loading-state" role="status">
                 <span className="spinner" aria-hidden="true" />
-                Inspecting the traffic scene…
+                Inspecting the traffic sceneâ€¦
               </div>
             )}
 
@@ -294,3 +309,4 @@ function App() {
 }
 
 export default App;
+

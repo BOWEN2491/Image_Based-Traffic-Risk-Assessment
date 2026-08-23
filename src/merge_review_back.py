@@ -65,18 +65,16 @@ def iter_review_items(review_root: Path):
 def move_to(dst_dir: Path, src: Path) -> Path:
     ensure_dir(dst_dir)
     dst = dst_dir / src.name
-    # handle name collision
     if dst.exists():
-        dst = dst_dir / f"{src.stem}_merge{dst.suffix}"
+        raise FileExistsError(f"Destination already exists: {dst}")
     shutil.move(str(src), str(dst))
     return dst
 
 def copy_to(dst_dir: Path, src: Path) -> Path:
     ensure_dir(dst_dir)
     dst = dst_dir / src.name
-    # handle name collision
     if dst.exists():
-        dst = dst_dir / f"{src.stem}_merge{dst.suffix}"
+        raise FileExistsError(f"Destination already exists: {dst}")
     shutil.copy2(str(src), str(dst))
     return dst
 
@@ -93,8 +91,10 @@ def main():
     review_root = Path(args.review_root)
     target_root = Path(args.target_root)
 
-    assert review_root.exists(), f"Review root not found: {review_root}"
-    assert target_root.exists(), f"Target root not found: {target_root}"
+    if not review_root.exists():
+        raise FileNotFoundError(f"Review root not found: {review_root}")
+    if not target_root.exists():
+        raise FileNotFoundError(f"Target root not found: {target_root}")
 
     # index target
     idx = index_target(target_root)
@@ -142,3 +142,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

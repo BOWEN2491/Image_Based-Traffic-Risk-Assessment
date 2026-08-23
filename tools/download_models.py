@@ -1,4 +1,4 @@
-"""Download v0.1.0 model assets and verify every SHA-256 digest."""
+"""Download model assets and verify every SHA-256 digest."""
 
 from __future__ import annotations
 
@@ -24,6 +24,11 @@ def sha256(path: Path) -> str:
 
 def download(destination_root: Path, force: bool = False) -> None:
     manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    if manifest.get("distribution_status") == "withdrawn":
+        raise RuntimeError(
+            "The packaged model release is withdrawn and cannot be downloaded. "
+            "Use a supported release or train a local model bundle."
+        )
     for asset in manifest["assets"]:
         destination = destination_root / asset["destination"]
         if destination.is_file() and sha256(destination) == asset["sha256"]:
@@ -54,3 +59,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

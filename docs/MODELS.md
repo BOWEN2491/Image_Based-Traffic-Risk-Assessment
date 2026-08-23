@@ -1,5 +1,7 @@
 # Model assets
 
+The v0.1.0 model release is withdrawn. Its tag and assets are retained for audit, but the packaged manifest deliberately refuses downloads and runtime loading. The withdrawal records a training/runtime contract mismatch, incomplete reproducibility, and an unconfirmed BDD100K-derived weight redistribution basis. The weak-label v2 fix is not asserted to have contaminated the v0.1.0 XGBoost because historical provenance is incomplete.
+
 Model binaries are release assets, not Git objects. Use the repository downloader instead of copying files from an old checkout:
 
 ```bash
@@ -37,3 +39,4 @@ Never load an untrusted `.pkl`, `.pickle`, or `.joblib` file. Python deserializa
 ## Updating assets
 
 A model update requires a new manifest version, digests calculated from the final uploaded bytes, a model-card update, compatibility tests, and a release note. Do not silently replace an asset at an existing release URL. Model tests that require large assets belong in the manual smoke workflow; ordinary pull-request tests use mocks.
+
