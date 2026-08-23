@@ -30,7 +30,7 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     raw = list(argv if argv is not None else sys.argv[1:])
     command = raw[0] if raw else None
-    if command and command != "predict":
+    if command and command in COMMANDS[1:]:
         args = argparse.Namespace(command=command, args=raw[1:])
     else:
         args = build_parser().parse_args(argv)
