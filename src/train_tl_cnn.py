@@ -8,10 +8,10 @@ Traffic-Light Color CNN (PyTorch, simple & practical)
 - Saves: best_model.pth, class_indices.json, training_log.csv
 - Also supports single-image prediction: add --predict "path_to_image"
 
-本版改动：
-- 默认 batch_size=32，epochs=40（配合 early stopping）
-- SimpleCNN 中加入 BatchNorm2d + Dropout(0.3)
-- 加入 Early Stopping（监控 val_loss，patience=5）
+æœ¬ç‰ˆæ”¹åŠ¨ï¼š
+- é»˜è®¤ batch_size=32ï¼Œepochs=40ï¼ˆé…åˆ early stoppingï¼‰
+- SimpleCNN ä¸­åŠ å…¥ BatchNorm2d + Dropout(0.3)
+- åŠ å…¥ Early Stoppingï¼ˆç›‘æŽ§ val_lossï¼Œpatience=5ï¼‰
 """
 from __future__ import annotations
 import argparse
@@ -64,7 +64,9 @@ def split_indices_stratified(targets: List[int], train_ratio=0.8, seed=42):
     train_idx, val_idx = [], []
     for t, idxs in buckets.items():
         rnd.shuffle(idxs)
-        k = int(len(idxs)*train_ratio)
+        if len(idxs) < 2:
+            raise ValueError(f"Each class needs at least two samples for a train/validation split: class {t}")
+        k = min(len(idxs) - 1, max(1, int(len(idxs)*train_ratio)))
         train_idx += idxs[:k]
         val_idx += idxs[k:]
     rnd.shuffle(train_idx)
@@ -72,7 +74,7 @@ def split_indices_stratified(targets: List[int], train_ratio=0.8, seed=42):
     return train_idx, val_idx
 
 class SimpleCNN(nn.Module):
-    """轻量 CNN：Conv + BN + ReLU + Pool * 3 + 全连接 + Dropout"""
+    """è½»é‡ CNNï¼šConv + BN + ReLU + Pool * 3 + å…¨è¿žæŽ¥ + Dropout"""
     def __init__(self, num_classes: int = 4):
         super().__init__()
         self.features = nn.Sequential(
@@ -146,6 +148,8 @@ def train_one_epoch(model, loader, device, optimizer, criterion):
         loss_sum += loss.item() * bs
         acc_sum += acc * bs
         n += bs
+    if n == 0:
+        raise ValueError("Training split is empty")
     return loss_sum / n, acc_sum / n
 
 @torch.no_grad()
@@ -161,6 +165,8 @@ def evaluate(model, loader, device, criterion):
         loss_sum += loss.item() * bs
         acc_sum += acc * bs
         n += bs
+    if n == 0:
+        raise ValueError("Validation split is empty")
     return loss_sum / n, acc_sum / n
 
 def main():
@@ -177,8 +183,8 @@ def main():
         "--out-dir", type=str, required=False, default="cnn_out"
     )
     parser.add_argument("--img-size", type=int, default=128)
-    parser.add_argument("--batch-size", type=int, default=32)  # 修改为 32
-    parser.add_argument("--epochs", type=int, default=40)      # 训练上限，配合 early stopping
+    parser.add_argument("--batch-size", type=int, default=32)  # ä¿®æ”¹ä¸º 32
+    parser.add_argument("--epochs", type=int, default=40)      # è®­ç»ƒä¸Šé™ï¼Œé…åˆ early stopping
     parser.add_argument("--lr", type=float, default=1e-3)
     parser.add_argument(
         "--model",
@@ -195,7 +201,7 @@ def main():
     )
     parser.add_argument("--num-workers", type=int, default=0)
     parser.add_argument("--seed", type=int, default=42)
-    # Early stopping 参数
+    # Early stopping å‚æ•°
     parser.add_argument(
         "--patience",
         type=int,
@@ -215,8 +221,10 @@ def main():
     if args.predict is not None:
         model_path = out_dir / "best_model.pth"
         mapping_path = out_dir / "class_indices.json"
-        assert model_path.exists(), f"Model not found: {model_path}"
-        assert mapping_path.exists(), f"Mapping not found: {mapping_path}"
+        if not model_path.exists():
+            raise FileNotFoundError(f"Model not found: {model_path}")
+        if not mapping_path.exists():
+            raise FileNotFoundError(f"Mapping not found: {mapping_path}")
         with open(mapping_path, "r", encoding="utf-8") as f:
             class_to_idx = json.load(f)
         idx_to_class = {v: k for k, v in class_to_idx.items()}
@@ -256,12 +264,13 @@ def main():
     if args.data_dir is None:
         parser.error("--data-dir is required in training mode")
     data_dir = Path(args.data_dir)
-    assert data_dir.exists(), (
-        f"Data dir not found: {data_dir} "
-        f"(expect subfolders red/yellow/green/unknown)"
-    )
+    if not data_dir.exists():
+        raise FileNotFoundError(
+            f"Data dir not found: {data_dir} "
+            f"(expect subfolders red/yellow/green/unknown)"
+        )
 
-    # 数据增强（训练）与验证变换
+    # æ•°æ®å¢žå¼ºï¼ˆè®­ç»ƒï¼‰ä¸ŽéªŒè¯å˜æ¢
     train_tfm = transforms.Compose(
         [
             transforms.Resize((args.img_size, args.img_size)),
@@ -289,19 +298,19 @@ def main():
         ]
     )
 
-    # 整体数据集（只初始化一次 ImageFolder，再用 indices 切分）
+    # æ•´ä½“æ•°æ®é›†ï¼ˆåªåˆå§‹åŒ–ä¸€æ¬¡ ImageFolderï¼Œå†ç”¨ indices åˆ‡åˆ†ï¼‰
     full_ds = datasets.ImageFolder(root=str(data_dir))
     class_to_idx = full_ds.class_to_idx
     idx_to_class = {v: k for k, v in class_to_idx.items()}
     print("[Info] Classes:", idx_to_class)
 
-    # 目标标签，用于分层划分 & class weights
+    # ç›®æ ‡æ ‡ç­¾ï¼Œç”¨äºŽåˆ†å±‚åˆ’åˆ† & class weights
     targets = [y for _, y in full_ds.samples]
     train_idx, val_idx = split_indices_stratified(
         targets, train_ratio=0.85, seed=args.seed
     )
 
-    # 重新封装 train / val 为 Subset + 各自的 transform
+    # é‡æ–°å°è£… train / val ä¸º Subset + å„è‡ªçš„ transform
     train_base = datasets.ImageFolder(root=str(data_dir), transform=train_tfm)
     val_base = datasets.ImageFolder(root=str(data_dir), transform=val_tfm)
     train_ds = Subset(train_base, train_idx)
@@ -337,20 +346,22 @@ def main():
     class_weights = compute_class_weights(
         targets, num_classes=num_classes
     ).to(device)
-    criterion = nn.CrossEntropyLoss(weight=class_weights)
+    # The sampler balances the training stream; validation must remain unweighted.
+    criterion = nn.CrossEntropyLoss()
+    val_criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
         optimizer, T_max=max(1, args.epochs)
     )
 
-    # 日志文件
+    # æ—¥å¿—æ–‡ä»¶
     log_csv = out_dir / "training_log.csv"
     with log_csv.open("w", newline="", encoding="utf-8") as f:
         csv.writer(f).writerow(
             ["epoch", "train_loss", "train_acc", "val_loss", "val_acc", "lr"]
         )
 
-    # 保存类别映射
+    # ä¿å­˜ç±»åˆ«æ˜ å°„
     with (out_dir / "class_indices.json").open(
         "w", encoding="utf-8"
     ) as fjs:
@@ -372,9 +383,7 @@ def main():
         tr_loss, tr_acc = train_one_epoch(
             model, train_loader, device, optimizer, criterion
         )
-        va_loss, va_acc = evaluate(
-            model, val_loader, device, criterion
-        )
+        va_loss, va_acc = evaluate(model, val_loader, device, val_criterion)
         scheduler.step()
 
         lr_now = optimizer.param_groups[0]["lr"]
@@ -385,7 +394,7 @@ def main():
             f"| lr={lr_now:.2e} | {dt:.1f}s"
         )
 
-        # 写入 CSV 日志
+        # å†™å…¥ CSV æ—¥å¿—
         with log_csv.open("a", newline="", encoding="utf-8") as f:
             csv.writer(f).writerow(
                 [
@@ -398,8 +407,9 @@ def main():
                 ]
             )
 
-        # 保存 best model（按 val_acc），并用于 early stopping 监控 val_loss
-        if va_acc > best_val_acc:
+        # Checkpoint and early stopping use validation loss only; epoch one always saves.
+        improved = va_loss < best_val_loss - 1e-4
+        if improved or epoch == 1:
             best_val_acc = va_acc
             torch.save(model.state_dict(), best_path)
             print(
@@ -407,8 +417,8 @@ def main():
                 f"(val_acc={best_val_acc:.3f})"
             )
 
-        # Early stopping：以 val_loss 作为主要监控指标
-        if va_loss < best_val_loss - 1e-4:
+        # Early stoppingï¼šä»¥ val_loss ä½œä¸ºä¸»è¦ç›‘æŽ§æŒ‡æ ‡
+        if improved:
             best_val_loss = va_loss
             bad_epochs = 0
         else:
@@ -425,6 +435,24 @@ def main():
                 )
                 break
 
+    if not best_path.is_file():
+        raise RuntimeError("Training finished without a checkpoint")
+    state = torch.load(best_path, map_location=device, weights_only=True)
+    model.load_state_dict(state, strict=True)
+    (out_dir / "model_metadata.json").write_text(
+        json.dumps(
+            {
+                "contract": "traffic-risk",
+                "schema_version": "2.0.0",
+                "best_epoch": epoch,
+                "best_loss": best_val_loss,
+                "val_accuracy": best_val_acc,
+                "seed": args.seed,
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
     print(f"[DONE] Best val acc: {best_val_acc:.3f}")
     print(f"Artifacts saved to: {out_dir}")
     print("  - best_model.pth")
@@ -433,3 +461,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

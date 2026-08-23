@@ -1,5 +1,7 @@
 {
   "release": "v0.1.0",
+  "distribution_status": "withdrawn",
+  "withdrawal_reason": "Training/runtime contract mismatch, incomplete reproducibility, and unconfirmed BDD100K-derived weight redistribution basis.",
   "feature_schema": "1.0.0",
   "model_versions": {
     "yolo": "yolo11n",
@@ -148,3 +150,4 @@
     }
   ]
 }
+

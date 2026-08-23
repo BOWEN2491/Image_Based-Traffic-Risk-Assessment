@@ -1,0 +1,23 @@
+{
+  "release": "v0.2.0",
+  "distribution_status": "public",
+  "contract": "traffic-risk",
+  "feature_schema": "2.0.0",
+  "model_versions": {
+    "mode": "rules",
+    "yolo": "yolo11n"
+  },
+  "assets": [
+    {
+      "name": "yolo11n.pt",
+      "destination": "yolo/yolo11n.pt",
+      "url": "https://github.com/BOWEN2491/Image_Based-Traffic-Risk-Assessment/releases/download/v0.2.0/yolo11n.pt",
+      "size": 5613764,
+      "sha256": "0ebbc80d4a7680d14987a577cd21342b65ecfd94632bd9a8da63ae6417644ee1",
+      "origin": "Ultralytics YOLO11n pretrained detection weights",
+      "license": "AGPL-3.0-only; an Ultralytics Enterprise License may provide alternative terms",
+      "format": "Ultralytics PyTorch checkpoint (.pt)"
+    }
+  ]
+}
+

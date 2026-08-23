@@ -31,7 +31,6 @@ from pathlib import Path
 import cv2
 import numpy as np
 import csv
-import time
 import os
 from typing import List, Tuple
 
@@ -76,23 +75,21 @@ def imread_resize(p: Path, max_side: int = 520) -> np.ndarray:
 def move_to(dst_dir: Path, p: Path) -> Path:
     ensure_dir(dst_dir)
     new_path = dst_dir / p.name
-    # Avoid conflict by appending a timestamp index if needed
     if new_path.exists():
-        stem = p.stem
-        suf = p.suffix
-        t = time.strftime("%Y%m%d_%H%M%S")
-        new_path = dst_dir / f"{stem}_{t}{suf}"
+        raise FileExistsError(f"Destination already exists: {new_path}")
     os.replace(str(p), str(new_path))
     return new_path
 
 def save_manifest(root: Path, items_all: List[Tuple[Path,str]], manifest: Path) -> None:
-    with manifest.open("w", newline="", encoding="utf-8") as f:
+    temporary = manifest.with_suffix(manifest.suffix + ".tmp")
+    with temporary.open("w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
         writer.writerow(["path","label"])
         for p, lab in items_all:
             # only write that still exists
             if p.exists():
                 writer.writerow([str(p), lab])
+    os.replace(str(temporary), str(manifest))
 
 def main():
     ap = argparse.ArgumentParser(description="Review & relabel ROI_labeled images (OpenCV).")
@@ -102,7 +99,8 @@ def main():
     args = ap.parse_args()
 
     root = Path(args.root)
-    assert root.exists(), f"Root not found: {root}"
+    if not root.exists():
+        raise FileNotFoundError(f"Root not found: {root}")
 
     focus = args.focus if args.focus in CLASSES else None
     items = load_items(root, focus)  # list of (path, label)
@@ -117,8 +115,8 @@ def main():
     focus_unknown_only = (focus == "unknown")
 
     cv2.namedWindow("ROI Labeler", cv2.WINDOW_AUTOSIZE)
-
-    while True:
+    try:
+      while True:
         # guard index
         idx = max(0, min(idx, len(items)-1))
         p, lab = items[idx]
@@ -180,10 +178,11 @@ def main():
         # Quit
         if key == ord('q'):
             break
-
-    save_manifest(root, items, manifest)
-    cv2.destroyAllWindows()
+    finally:
+      save_manifest(root, items, manifest)
+      cv2.destroyAllWindows()
     print(f"[DONE] Manifest saved to: {manifest}")
 
 if __name__ == "__main__":
     main()
+
