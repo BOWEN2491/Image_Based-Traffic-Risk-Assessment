@@ -64,7 +64,9 @@ def split_indices_stratified(targets: List[int], train_ratio=0.8, seed=42):
     train_idx, val_idx = [], []
     for t, idxs in buckets.items():
         rnd.shuffle(idxs)
-        k = int(len(idxs)*train_ratio)
+        if len(idxs) < 2:
+            raise ValueError(f"Each class needs at least two samples for a train/validation split: class {t}")
+        k = min(len(idxs) - 1, max(1, int(len(idxs)*train_ratio)))
         train_idx += idxs[:k]
         val_idx += idxs[k:]
     rnd.shuffle(train_idx)
@@ -146,6 +148,8 @@ def train_one_epoch(model, loader, device, optimizer, criterion):
         loss_sum += loss.item() * bs
         acc_sum += acc * bs
         n += bs
+    if n == 0:
+        raise ValueError("Training split is empty")
     return loss_sum / n, acc_sum / n
 
 @torch.no_grad()
@@ -161,6 +165,8 @@ def evaluate(model, loader, device, criterion):
         loss_sum += loss.item() * bs
         acc_sum += acc * bs
         n += bs
+    if n == 0:
+        raise ValueError("Validation split is empty")
     return loss_sum / n, acc_sum / n
 
 def main():
@@ -340,7 +346,9 @@ def main():
     class_weights = compute_class_weights(
         targets, num_classes=num_classes
     ).to(device)
-    criterion = nn.CrossEntropyLoss(weight=class_weights)
+    # The sampler balances the training stream; validation must remain unweighted.
+    criterion = nn.CrossEntropyLoss()
+    val_criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
         optimizer, T_max=max(1, args.epochs)
@@ -375,9 +383,7 @@ def main():
         tr_loss, tr_acc = train_one_epoch(
             model, train_loader, device, optimizer, criterion
         )
-        va_loss, va_acc = evaluate(
-            model, val_loader, device, criterion
-        )
+        va_loss, va_acc = evaluate(model, val_loader, device, val_criterion)
         scheduler.step()
 
         lr_now = optimizer.param_groups[0]["lr"]
@@ -401,8 +407,9 @@ def main():
                 ]
             )
 
-        # ä¿å­˜ best modelï¼ˆæŒ‰ val_accï¼‰ï¼Œå¹¶ç”¨äºŽ early stopping ç›‘æŽ§ val_loss
-        if va_acc > best_val_acc:
+        # Checkpoint and early stopping use validation loss only; epoch one always saves.
+        improved = va_loss < best_val_loss - 1e-4
+        if improved or epoch == 1:
             best_val_acc = va_acc
             torch.save(model.state_dict(), best_path)
             print(
@@ -411,7 +418,7 @@ def main():
             )
 
         # Early stoppingï¼šä»¥ val_loss ä½œä¸ºä¸»è¦ç›‘æŽ§æŒ‡æ ‡
-        if va_loss < best_val_loss - 1e-4:
+        if improved:
             best_val_loss = va_loss
             bad_epochs = 0
         else:
@@ -428,6 +435,24 @@ def main():
                 )
                 break
 
+    if not best_path.is_file():
+        raise RuntimeError("Training finished without a checkpoint")
+    state = torch.load(best_path, map_location=device, weights_only=True)
+    model.load_state_dict(state, strict=True)
+    (out_dir / "model_metadata.json").write_text(
+        json.dumps(
+            {
+                "contract": "traffic-risk",
+                "schema_version": "2.0.0",
+                "best_epoch": epoch,
+                "best_loss": best_val_loss,
+                "val_accuracy": best_val_acc,
+                "seed": args.seed,
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
     print(f"[DONE] Best val acc: {best_val_acc:.3f}")
     print(f"Artifacts saved to: {out_dir}")
     print("  - best_model.pth")
