@@ -13,13 +13,13 @@ from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from PIL import Image
 
-from src.traffic_risk.build_features import compute_features
-from src.traffic_risk.config import Settings
-from src.traffic_risk.contracts import AssetRecord, ModelManifest, ModelMetadata
-from src.traffic_risk.hard_rules import apply_hard_rules, apply_signal_policy
-from src.traffic_risk.pipeline import run_single_image
-from src.traffic_risk.schema import MODEL_FEATURES, FeatureSchemaError, public_features, validate_model_features
-from src.traffic_risk.model_runtime import ModelRuntime, ModelUnavailableError, PerceptionError
+from traffic_risk.build_features import compute_features
+from traffic_risk.config import Settings
+from traffic_risk.contracts import AssetRecord, ModelManifest, ModelMetadata
+from traffic_risk.hard_rules import apply_hard_rules, apply_signal_policy
+from traffic_risk.pipeline import run_single_image
+from traffic_risk.schema import MODEL_FEATURES, FeatureSchemaError, public_features, validate_model_features
+from traffic_risk.model_runtime import ModelRuntime, ModelUnavailableError, PerceptionError
 
 
 def _image() -> bytes:
@@ -93,7 +93,7 @@ def test_rules_and_pipeline_rules_mode(tmp_path):
 
 
 def test_new_api_health_and_not_ready(tmp_path):
-    from src.traffic_risk.app import create_app
+    from traffic_risk.app import create_app
     class Runtime:
         def __init__(self, _settings): self.loaded = False
         def load(self): self.loaded = True
@@ -162,7 +162,7 @@ def test_pipeline_failure_paths(tmp_path):
 
 
 def test_cli_parser_and_workflow_errors(tmp_path):
-    from src.traffic_risk.cli import build_parser, main
+    from traffic_risk.cli import build_parser, main
     assert set(build_parser()._subparsers._group_actions[0].choices) == {
         "predict", "download-models", "build-features", "generate-weak-labels",
         "train-risk", "train-traffic-light", "build-local-manifest", "review-roi", "merge-review",
@@ -182,7 +182,7 @@ def test_cli_parser_and_workflow_errors(tmp_path):
 
 
 def test_new_api_validation_helpers(tmp_path):
-    import src.traffic_risk.app as api
+    import traffic_risk.app as api
     from starlette.datastructures import UploadFile
     with pytest.raises(HTTPException):
         api._validate_extension("x.gif")
@@ -204,7 +204,7 @@ def test_new_api_validation_helpers(tmp_path):
 
 
 def test_new_api_predict_success_and_upload_rejections(tmp_path):
-    from src.traffic_risk.app import create_app
+    from traffic_risk.app import create_app
     class Runtime:
         versions = {"mode": "rules", "feature_schema": "2.0.0", "yolo": "test"}
         def __init__(self, _settings): pass
@@ -287,7 +287,7 @@ def test_every_conservative_rule(changes):
 
 
 def test_identity_helpers_and_pipeline_validation(tmp_path):
-    from src.sample_identity import IdentityConflict, SampleRecord, assert_destinations_free, build_records, sample_id_for, write_jsonl
+    from traffic_risk.sample_identity import IdentityConflict, SampleRecord, assert_destinations_free, build_records, sample_id_for, write_jsonl
     root = tmp_path / "data"
     root.mkdir()
     first = root / "a.png"
@@ -324,7 +324,7 @@ def test_pipeline_invalid_detector_shapes(tmp_path):
 
 def test_xgb_training_rejects_incomplete_classes(tmp_path):
     import pandas as pd
-    from src.build_XGBoost import train
+    from traffic_risk.build_XGBoost import train
     frame = pd.DataFrame([{**dict.fromkeys(MODEL_FEATURES, 0.0), "risk_weak": 0} for _ in range(4)])
     csv_path = tmp_path / "features.csv"
     frame.to_csv(csv_path, index=False)
@@ -335,7 +335,7 @@ def test_xgb_training_rejects_incomplete_classes(tmp_path):
 def test_xgb_training_manifest_roundtrip(tmp_path):
     import pandas as pd
     import xgboost as xgb
-    from src.build_XGBoost import train
+    from traffic_risk.build_XGBoost import train
     rows = []
     for label in range(3):
         for index in range(4):
@@ -356,7 +356,7 @@ def test_xgb_training_manifest_roundtrip(tmp_path):
 
 
 def test_cnn_synthetic_train_reload_artifacts(tmp_path, monkeypatch):
-    from src import train_tl_cnn
+    from traffic_risk import train_tl_cnn
     data = tmp_path / "roi"
     for label in ("red", "green"):
         folder = data / label
@@ -368,4 +368,3 @@ def test_cnn_synthetic_train_reload_artifacts(tmp_path, monkeypatch):
     train_tl_cnn.main()
     assert (output / "best_model.pth").is_file()
     assert (output / "model_metadata.json").is_file()
-

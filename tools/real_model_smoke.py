@@ -9,10 +9,10 @@ from pathlib import Path
 
 from PIL import Image
 
-from src.config import Settings
-from src.model_runtime import ModelRuntime
-from src.pipeline import run_single_image
-from src.schema import MODEL_FEATURES
+from traffic_risk.config import Settings
+from traffic_risk.model_runtime import ModelRuntime
+from traffic_risk.pipeline import run_single_image
+from traffic_risk.schema import MODEL_FEATURES
 
 
 def smoke(model_dir: Path) -> dict[str, object]:

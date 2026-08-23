@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from src.traffic_risk.weak_label import WEAK_LABEL_FEATURES, WeakLabelError, generate_weak_label
+from traffic_risk.weak_label import WEAK_LABEL_FEATURES, WeakLabelError, generate_weak_label
 
 
 def _frame(rows=6):
@@ -35,4 +35,3 @@ def test_weak_label_rejects_missing_and_small_input():
     frame = frame.drop(columns=["max_box_area_person"])
     with pytest.raises(WeakLabelError, match="missing"):
         generate_weak_label(frame)
-

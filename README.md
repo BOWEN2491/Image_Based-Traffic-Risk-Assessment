@@ -64,13 +64,13 @@ The downloader reads its packaged, versioned asset manifest and refuses files wh
 Run one image through the command-line pipeline:
 
 ```bash
-python -m src.pipeline --img path/to/image.jpg
+python -m traffic_risk.pipeline --img path/to/image.jpg
 ```
 
 Start the API:
 
 ```bash
-uvicorn src.app:app --host 127.0.0.1 --port 8000
+uvicorn traffic_risk.app:app --host 127.0.0.1 --port 8000
 ```
 
 Check `http://127.0.0.1:8000/ready` before sending inference requests. Interactive API documentation is at `http://127.0.0.1:8000/docs`.
@@ -121,7 +121,7 @@ Default upload limits are 10 MiB and 20 megapixels. Default CORS access is `http
 | `RISK_MODEL_DIR` | `./models` | Root of downloaded model assets |
 | `RISK_UPLOAD_DIR` | system temp + `traffic-risk-assessment/uploads` | Temporary upload directory |
 | `RISK_MAX_UPLOAD_BYTES` | `10485760` | Maximum uploaded bytes |
-| `RISK_MAX_IMAGE_PIXELS` | `20000000` | Maximum decoded width Ã— height |
+| `RISK_MAX_IMAGE_PIXELS` | `20000000` | Maximum decoded width × height |
 | `RISK_INFERENCE_CONCURRENCY` | `1` | Maximum simultaneous inference jobs |
 | `RISK_BUSY_TIMEOUT_SECONDS` | `0.1` | Wait before returning busy/503 |
 | `RISK_CORS_ORIGINS` | `http://localhost:5173` | Comma-separated allowed origins |
@@ -185,4 +185,3 @@ This repository is licensed under **GNU Affero General Public License v3.0 only*
 Third-party packages, models, and datasets retain their own terms. In particular, the project uses Ultralytics software/model assets under its AGPL-3.0 option. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 Contributions are welcome under the same license. Read [CONTRIBUTING.md](CONTRIBUTING.md), cite the versioned software using [CITATION.cff](CITATION.cff), and report vulnerabilities as described in [SECURITY.md](SECURITY.md).
-

@@ -129,7 +129,7 @@
       "loader_constraints": {
         "schema_version": "1.0.0",
         "feature_count": 11,
-        "ordering": "Must match src.schema.MODEL_FEATURES exactly",
+        "ordering": "Must match traffic_risk.schema.MODEL_FEATURES exactly",
         "integrity": "Load only after exact size and SHA-256 verification"
       }
     },
@@ -150,4 +150,3 @@
     }
   ]
 }
-

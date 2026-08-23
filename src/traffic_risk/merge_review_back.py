@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 Merge reviewed ROIs back into the main ROI_labeled folder.
 
@@ -27,20 +26,17 @@ import argparse
 from pathlib import Path
 import shutil
 import csv
-import sys
-import os
-from typing import Dict, List, Tuple
 
 CLASSES = ["red","yellow","green","unknown"]
 
 def ensure_dir(p: Path) -> None:
     p.mkdir(parents=True, exist_ok=True)
 
-def index_target(target_root: Path) -> Dict[str, Tuple[Path, str]]:
+def index_target(target_root: Path) -> dict[str, tuple[Path, str]]:
     """
     Build an index: filename -> (full_path, class_name) for all files under TARGET class folders.
     """
-    idx: Dict[str, Tuple[Path,str]] = {}
+    idx: dict[str, tuple[Path,str]] = {}
     for c in CLASSES:
         d = target_root / c
         if not d.exists():
@@ -115,7 +111,7 @@ def main():
                 n_found += 1
                 if old_cls != new_cls:
                     if args.dry_run:
-                        writer.writerow([filename, old_cls, new_cls, "DRY-MOVE", str((target_root/new_cls/filename))])
+                        writer.writerow([filename, old_cls, new_cls, "DRY-MOVE", str(target_root/new_cls/filename)])
                     else:
                         # move inside target to new class
                         new_path = move_to(target_root / new_cls, tpath)
@@ -129,7 +125,7 @@ def main():
                 n_missing += 1
                 if args.copy_missing:
                     if args.dry_run:
-                        writer.writerow([filename, "", new_cls, "DRY-COPY", str((target_root/new_cls/filename))])
+                        writer.writerow([filename, "", new_cls, "DRY-COPY", str(target_root/new_cls/filename)])
                     else:
                         new_path = copy_to(target_root / new_cls, p)
                         writer.writerow([filename, "", new_cls, "COPY", str(new_path)])
@@ -142,4 +138,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

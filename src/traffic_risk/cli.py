@@ -47,11 +47,11 @@ def main(argv: list[str] | None = None) -> int:
             result.to_csv(options.output_csv, index=False)
             return 0
         modules = {
-            "build-features": "src.build_features",
-            "train-risk": "src.build_XGBoost",
-            "train-traffic-light": "src.train_tl_cnn",
-            "review-roi": "src.review_roi_labeler",
-            "merge-review": "src.merge_review_back",
+            "build-features": "traffic_risk.build_features",
+            "train-risk": "traffic_risk.build_XGBoost",
+            "train-traffic-light": "traffic_risk.train_tl_cnn",
+            "review-roi": "traffic_risk.review_roi_labeler",
+            "merge-review": "traffic_risk.merge_review_back",
         }
         if args.command == "build-local-manifest":
             parser = argparse.ArgumentParser(prog="traffic-risk build-local-manifest")
@@ -98,4 +98,3 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     main()
-

@@ -137,11 +137,12 @@ class ModelRuntime:
     def load(self) -> None:
         manifest = self._verify_manifest()
         try:
+            if self.settings.mode == "models":
+                self._validate_sidecars(manifest)
             from ultralytics import YOLO
             self.yolo = YOLO(str(self.settings.yolo_path))
             if self.settings.mode == "rules":
                 return
-            self._validate_sidecars(manifest)
             import torch
             import torch.nn as nn
             import xgboost as xgb
@@ -251,4 +252,3 @@ class ModelRuntime:
             return {0: "low", 1: "medium", 2: "high"}[prediction]
         except KeyError as exc:
             raise PerceptionError("Risk model returned an unknown class") from exc
-

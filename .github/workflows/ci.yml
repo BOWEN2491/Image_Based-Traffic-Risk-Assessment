@@ -41,7 +41,7 @@ jobs:
           python -m build --wheel
           python -c "import glob, subprocess, sys; subprocess.check_call([sys.executable, '-m', 'tools.wheel_smoke', glob.glob('dist/*.whl')[0], '--lock', 'requirements-cpu.lock'])"
       - name: Import training CLI dependencies
-        run: python -c "import joblib, sklearn; import src.build_XGBoost, src.train_tl_cnn"
+        run: python -c "import joblib, sklearn; import traffic_risk.build_XGBoost, traffic_risk.train_tl_cnn"
       - name: Upload coverage report
         if: matrix.os == 'ubuntu-latest'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -67,4 +67,3 @@ jobs:
       - run: npm run lint
       - run: npm test
       - run: npm run build
-
