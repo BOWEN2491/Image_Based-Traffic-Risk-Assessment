@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1] - Maintenance hardening
+
+- Documented the rules-first public runtime and local-only CNN/XGBoost distribution boundary.
+- Added separate runtime/API and whole-package coverage gates to CI.
+- Added Python 3.12 to the cross-platform CI matrix.
+- Updated API examples, model-card language, and model asset guidance for the v0.2.x contract.
+
 ## [0.1.1] - Source-only withdrawal notice
 
 - Marked the v0.1.0 model manifest withdrawn; downloader and runtime fail closed.
@@ -27,6 +34,7 @@ All notable changes to this project are documented here. The format follows Keep
 
 - BDD100K images, generated results, training outputs, caches, local paths, and binary models from the published tree.
 
-[Unreleased]: https://github.com/BOWEN2491/Image_Based-Traffic-Risk-Assessment/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/BOWEN2491/Image_Based-Traffic-Risk-Assessment/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/BOWEN2491/Image_Based-Traffic-Risk-Assessment/releases/tag/v0.2.1
 [0.1.0]: https://github.com/BOWEN2491/Image_Based-Traffic-Risk-Assessment/releases/tag/v0.1.0
 

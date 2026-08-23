@@ -9,11 +9,12 @@ import hashlib
 from pathlib import Path
 
 from .config import Settings
+from .contracts import AssetRecord, ModelManifest
 from .model_runtime import ModelRuntime, ModelUnavailableError
 from .pipeline import run_single_image
 
 
-COMMANDS = ("predict", "download-models", "build-features", "generate-weak-labels", "train-risk", "train-traffic-light", "build-local-manifest", "review-roi", "merge-review")
+COMMANDS = ("predict", "download-models", "build-features", "generate-weak-labels", "train-risk", "train-traffic-light", "build-local-manifest", "review-roi", "merge-review", "smoke-rules")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -52,6 +53,7 @@ def main(argv: list[str] | None = None) -> int:
             "train-traffic-light": "traffic_risk.train_tl_cnn",
             "review-roi": "traffic_risk.review_roi_labeler",
             "merge-review": "traffic_risk.merge_review_back",
+            "smoke-rules": "traffic_risk.smoke_rules",
         }
         if args.command == "build-local-manifest":
             parser = argparse.ArgumentParser(prog="traffic-risk build-local-manifest")
@@ -68,12 +70,25 @@ def main(argv: list[str] | None = None) -> int:
                 if not path.is_file():
                     raise FileNotFoundError(path)
                 digest = hashlib.sha256(path.read_bytes()).hexdigest()
-                assets.append({"destination": relative, "size": path.stat().st_size, "sha256": digest})
+                assets.append(AssetRecord(destination=relative, name=Path(relative).name, size=path.stat().st_size, sha256=digest))
+            manifest = ModelManifest(
+                release="local",
+                distribution_status="local",
+                contract="traffic-risk",
+                schema_version="2.0.0",
+                model_versions={
+                    "mode": "models",
+                    "yolo": "local",
+                    "traffic_light_cnn": "local",
+                    "risk_xgb": "local",
+                },
+                assets=assets,
+            )
             options.output.parent.mkdir(parents=True, exist_ok=True)
-            options.output.write_text(json.dumps({"contract": "traffic-risk", "schema_version": "2.0.0", "distribution_status": "local", "model_versions": {"mode": "models", "feature_schema": "2.0.0"}, "assets": assets}, indent=2), encoding="utf-8")
+            options.output.write_text(json.dumps(manifest.as_dict(), indent=2), encoding="utf-8")
             return 0
         if args.command == "download-models":
-            from tools.download_models import main as workflow_main
+            from .download_models import main as workflow_main
         else:
             module_name = modules[args.command]
             module = __import__(module_name, fromlist=["main"])

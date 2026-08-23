@@ -1,11 +1,17 @@
 # Model assets
 
+## Public v0.2.x bundle
+
+The public runtime defaults to `RISK_MODE=rules`. Its manifest is `distribution_status="public"` and declares the release YOLO asset, feature-schema version `2.0.0`, and the checksum required by the downloader and runtime. In this mode, a hard rule may return `high`; otherwise the API returns `status="uncertain"` and `risk="unknown"`. Missing CNN/XGBoost files must never be represented as a fabricated `low` or `medium` result.
+
+`RISK_MODE=models` is an explicit local-only mode. It requires `RISK_MODEL_MANIFEST` and a complete six-asset bundle (`yolo/yolo11n.pt`, `cnn/best_model.pth`, `cnn/class_indices.json`, `risk/risk_xgb.ubj`, `risk/feature_order.json`, and `risk/model_metadata.json`). Every path, size, SHA-256, sidecar, architecture, and feature-schema check must pass before loading. These BDD100K-derived assets are not published in Git or Release assets.
+
 The v0.1.0 model release is withdrawn. Its tag and assets are retained for audit, but the packaged manifest deliberately refuses downloads and runtime loading. The withdrawal records a training/runtime contract mismatch, incomplete reproducibility, and an unconfirmed BDD100K-derived weight redistribution basis. The weak-label v2 fix is not asserted to have contaminated the v0.1.0 XGBoost because historical provenance is incomplete.
 
 Model binaries are release assets, not Git objects. Use the repository downloader instead of copying files from an old checkout:
 
 ```bash
-python -m tools.download_models
+traffic-risk download-models
 ```
 
 The manifest is installed as package data, so the same command works from an editable checkout or an installed wheel. The default destination is `./models` in the caller's current working directory; use `--destination` to select another location.

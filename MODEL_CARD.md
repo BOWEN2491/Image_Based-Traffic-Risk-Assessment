@@ -1,10 +1,14 @@
-# Model Card: Image-Based Traffic Risk Assessment v0.1.0
+# Model Card: Image-Based Traffic Risk Assessment v0.2.1
 
 ## Summary
 
-This research demo combines three components: an Ultralytics YOLO detector, a CNN that classifies detected traffic-light crops, and an XGBoost classifier operating on engineered scene features. Deterministic rules can override or reject a model estimate.
+This research demo combines an Ultralytics YOLO detector with conservative deterministic rules in its public default mode. A CNN that classifies detected traffic-light crops and an XGBoost classifier operating on engineered scene features are supported only for explicitly configured, locally trained bundles. Deterministic rules can override or reject a model estimate.
 
-The output categories are `low`, `medium`, `high`, and `unknown`. They are qualitative demo labels, not calibrated probabilities or validated measures of road danger.
+The output categories are `low`, `medium`, `high`, and `unknown`. In public `RISK_MODE=rules`, a hard rule may return `high`; all other cases return `unknown` rather than inventing `low` or `medium`. These are qualitative demo labels, not calibrated probabilities or validated measures of road danger.
+
+## Release and distribution status
+
+The v0.2.x public release contains the validated YOLO asset plus versioned manifest and feature-schema metadata. BDD100K-derived CNN/XGBoost weights, ROI data, and training outputs are not redistributed. A local `RISK_MODE=models` bundle is accepted only after manifest, path, size, SHA-256, sidecar, and schema checks pass. The historical v0.1.0 release is withdrawn and retained only for audit; its training/runtime contract and provenance are incomplete.
 
 ## Intended use
 
@@ -49,7 +53,7 @@ Missing models, schema mismatch, corrupt images, unusable detections, non-finite
 - Traffic-light CNN: weights-only state dictionary, loaded strictly against the expected architecture.
 - Risk classifier: XGBoost native JSON/UBJ, not Python pickle/joblib deserialization.
 
-The versioned release manifest is the source of truth for filenames, origins, sizes, SHA-256 digests, class mapping, and feature-schema compatibility. The provided downloader verifies assets before use.
+The versioned release manifest is the source of truth for filenames, origins, sizes, SHA-256 digests, class mapping, and feature-schema compatibility. The provided downloader verifies assets before use, and runtime verifies the manifest before loading any model. The public rules manifest has `distribution_status="public"` and requires only its declared YOLO asset; a local models manifest must describe the complete six-asset bundle.
 
 ## License
 

@@ -9,7 +9,7 @@ from types import ModuleType, SimpleNamespace
 
 import pytest
 
-from tools import download_models
+from traffic_risk import download_models
 from traffic_risk.config import Settings
 from traffic_risk import model_runtime
 from traffic_risk.model_runtime import ModelRuntime, ModelUnavailableError, PerceptionError
@@ -54,7 +54,9 @@ def _write_runtime_assets(root: Path, *, mapping=None, feature_order=None) -> Pa
     manifest.write_text(
         json.dumps(
             {
-                "release": "v0.1.0",
+                "release": "local",
+                "distribution_status": "local",
+                "contract": "traffic-risk",
                 "feature_schema": SCHEMA_VERSION,
                 "model_versions": {
                     "yolo": "yolo11n",
@@ -72,7 +74,7 @@ def _write_runtime_assets(root: Path, *, mapping=None, feature_order=None) -> Pa
 def test_download_and_verify(monkeypatch, tmp_path):
     payload = b"trusted model"
     manifest = tmp_path / "manifest.json"
-    manifest.write_text(json.dumps({"assets": [{"name": "model", "destination": "risk/model.ubj", "url": "https://example.test/model", "size": len(payload), "sha256": hashlib.sha256(payload).hexdigest()}]}), encoding="utf-8")
+    manifest.write_text(json.dumps({"release": "test", "distribution_status": "public", "contract": "traffic-risk", "feature_schema": "2.0.0", "assets": [{"name": "model", "destination": "risk/model.ubj", "url": "https://example.test/model", "size": len(payload), "sha256": hashlib.sha256(payload).hexdigest()}]}), encoding="utf-8")
     monkeypatch.setattr(download_models, "MANIFEST", manifest)
     monkeypatch.setattr(download_models.urllib.request, "urlopen", lambda *_args, **_kwargs: io.BytesIO(payload))
     destination = tmp_path / "models"
@@ -83,7 +85,7 @@ def test_download_and_verify(monkeypatch, tmp_path):
 
 def test_bad_digest_cleans_partial(monkeypatch, tmp_path):
     manifest = tmp_path / "manifest.json"
-    manifest.write_text(json.dumps({"assets": [{"name": "model", "destination": "model.ubj", "url": "https://example.test/model", "size": 3, "sha256": "0" * 64}]}), encoding="utf-8")
+    manifest.write_text(json.dumps({"release": "test", "distribution_status": "public", "contract": "traffic-risk", "feature_schema": "2.0.0", "assets": [{"name": "model", "destination": "model.ubj", "url": "https://example.test/model", "size": 3, "sha256": "0" * 64}]}), encoding="utf-8")
     monkeypatch.setattr(download_models, "MANIFEST", manifest)
     monkeypatch.setattr(download_models.urllib.request, "urlopen", lambda *_args, **_kwargs: io.BytesIO(b"bad"))
     with pytest.raises(RuntimeError, match="verification"):
@@ -93,35 +95,19 @@ def test_bad_digest_cleans_partial(monkeypatch, tmp_path):
 
 def test_release_manifest_has_provenance_and_loader_contracts():
     manifest = json.loads(download_models.MANIFEST.read_text(encoding="utf-8"))
-    assert manifest["release"] == "v0.1.0"
-    assert manifest["feature_schema"] == "1.0.0"
-    assert manifest["model_versions"] == {
-        "yolo": "yolo11n",
-        "traffic_light_cnn": "v0.1.0",
-        "risk_xgb": "v0.1.0",
-    }
-    assert len(manifest["assets"]) == 6
-    for asset in manifest["assets"]:
-        assert all(asset[field] for field in ("origin", "license", "format", "loader_constraints"))
-        assert len(asset["sha256"]) == 64
-        assert asset["size"] > 0
-
-    assets = {asset["name"]: asset for asset in manifest["assets"]}
-    cnn = assets["best_model.pth"]
-    assert cnn["architecture"]["name"] == "torchvision.models.resnet18"
-    assert cnn["class_mapping"] == {"green": 0, "red": 1, "unknown": 2, "yellow": 3}
-
-    risk = assets["risk_xgb.ubj"]
-    assert risk["loader_constraints"]["entrypoint"] == "xgboost.Booster.load_model"
-    assert risk["loader_constraints"]["num_features"] == len(MODEL_FEATURES)
-    assert risk["feature_schema"]["features"] == list(MODEL_FEATURES)
-    assert risk["versions"]["training"]["xgboost"].startswith("unknown")
-    assert risk["versions"]["conversion_runtime"]["xgboost"] == "3.2.0"
+    assert manifest["release"] == "v0.2.1"
+    assert manifest["distribution_status"] == "public"
+    assert manifest["feature_schema"] == "2.0.0"
+    assert manifest["model_versions"] == {"mode": "rules", "yolo": "yolo11n"}
+    assert len(manifest["assets"]) == 1
+    asset = manifest["assets"][0]
+    assert asset["destination"] == "yolo/yolo11n.pt"
+    assert len(asset["sha256"]) == 64 and asset["size"] > 0
 
 
 def test_packaged_manifest_is_available():
     assert download_models.MANIFEST.is_file()
-    assert json.loads(download_models.MANIFEST.read_text(encoding="utf-8"))["release"] == "v0.1.0"
+    assert json.loads(download_models.MANIFEST.read_text(encoding="utf-8"))["release"] == "v0.2.1"
 
 
 def test_model_runtime_predicts_with_native_booster_contract(monkeypatch, tmp_path):
@@ -234,7 +220,7 @@ def test_runtime_loads_verified_contract_with_fake_libraries(monkeypatch, tmp_pa
     runtime.load()
     assert runtime.versions == {
         "mode": "models",
-        "release": "v0.1.0",
+        "release": "local",
         "feature_schema": SCHEMA_VERSION,
         "yolo": "yolo11n",
         "traffic_light_cnn": "v0.1.0",
