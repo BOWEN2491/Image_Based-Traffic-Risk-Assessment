@@ -237,6 +237,27 @@ def test_runtime_rules_load_and_invalid_prediction(tmp_path, monkeypatch):
         runtime.predict_risk(dict.fromkeys(MODEL_FEATURES, 0.0))
 
 
+def test_runtime_detects_supported_objects(tmp_path):
+    import numpy as np
+    image = tmp_path / "scene.png"
+    Image.new("RGB", (30, 30), "white").save(image)
+    class Scalar:
+        def __init__(self, value): self.value = value
+        def item(self): return self.value
+    class Box:
+        cls = Scalar(0)
+        xyxy = type("Coords", (), {"cpu": lambda self: self, "numpy": lambda self: np.array([[1, 1, 10, 10]])})()
+    class Result:
+        names = {0: "car", 1: "unknown"}
+        boxes = [Box()]
+    class Yolo:
+        def predict(self, **_kwargs): return [Result()]
+    runtime = ModelRuntime(_settings(tmp_path))
+    runtime.yolo = Yolo()
+    result = runtime.detect(image)
+    assert result["frames"][0]["objects"][0]["category"] == "car"
+
+
 @pytest.mark.parametrize("changes", [
     {"near_person_count": 1}, {"max_box_area_person": 0.01, "bottom_half_person_ratio": 0.7},
     {"max_box_area_vehicle": 0.17}, {"near_vehicle_count": 2},
