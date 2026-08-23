@@ -165,8 +165,8 @@ def test_cli_parser_and_workflow_errors(tmp_path):
         "predict", "download-models", "build-features", "generate-weak-labels",
         "train-risk", "train-traffic-light", "build-local-manifest", "review-roi", "merge-review",
     }
-    with pytest.raises(SystemExit, match="offline workflow"):
-        main(["download-models"])
+    with pytest.raises(SystemExit, match="local bundle manifest"):
+        main(["build-local-manifest"])
     with pytest.raises(FileNotFoundError):
         main(["predict", str(tmp_path / "missing.png")])
 

@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import pandas as pd
+import sys
 from pathlib import Path
 
 from .config import Settings
@@ -19,14 +21,47 @@ def build_parser() -> argparse.ArgumentParser:
     predict = sub.add_parser("predict", help="predict risk for one image")
     predict.add_argument("image", type=Path)
     for name in COMMANDS[1:]:
-        sub.add_parser(name, help=f"{name.replace('-', ' ')} (local workflow)")
+        workflow = sub.add_parser(name, help=f"{name.replace('-', ' ')} local workflow")
+        workflow.add_argument("args", nargs=argparse.REMAINDER)
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     if args.command != "predict":
-        raise SystemExit(f"{args.command} is an offline workflow and must be invoked with its dedicated module")
+        forwarded = list(getattr(args, "args", []))
+        if args.command == "generate-weak-labels":
+            parser = argparse.ArgumentParser(prog="traffic-risk generate-weak-labels")
+            parser.add_argument("--input-csv", type=Path, required=True)
+            parser.add_argument("--output-csv", type=Path, required=True)
+            options = parser.parse_args(forwarded)
+            from src.weak_label import generate_weak_label
+            result = generate_weak_label(pd.read_csv(options.input_csv))
+            options.output_csv.parent.mkdir(parents=True, exist_ok=True)
+            result.to_csv(options.output_csv, index=False)
+            return 0
+        modules = {
+            "build-features": "src.build_features",
+            "train-risk": "src.build_XGBoost",
+            "train-traffic-light": "src.train_tl_cnn",
+            "review-roi": "src.review_roi_labeler",
+            "merge-review": "src.merge_review_back",
+        }
+        if args.command == "download-models":
+            from tools.download_models import main as workflow_main
+        elif args.command == "build-local-manifest":
+            raise SystemExit("build-local-manifest requires a local bundle manifest generator")
+        else:
+            module_name = modules[args.command]
+            module = __import__(module_name, fromlist=["main"])
+            workflow_main = module.main
+        old_argv = sys.argv
+        try:
+            sys.argv = [f"traffic-risk {args.command}", *forwarded]
+            workflow_main()
+        finally:
+            sys.argv = old_argv
+        return 0
     if not args.image.is_file():
         raise FileNotFoundError(args.image)
     runtime = ModelRuntime(Settings())
