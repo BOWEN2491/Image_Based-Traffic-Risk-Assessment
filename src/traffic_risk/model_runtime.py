@@ -15,7 +15,7 @@ from .config import Settings
 from .schema import MODEL_FEATURES, SCHEMA_VERSION, validate_model_features
 
 
-MANIFEST = files("traffic_risk").joinpath("model_manifest.json")
+MANIFEST = files(__package__).joinpath("model_manifest.json")
 EXPECTED_MAPPING = {"green": 0, "red": 1, "unknown": 2, "yellow": 3}
 EXPECTED_DESTINATIONS = {
     "yolo/yolo11n.pt",

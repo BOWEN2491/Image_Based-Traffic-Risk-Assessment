@@ -122,6 +122,9 @@ def create_app(
         except ModelUnavailableError as exc:
             application.state.load_error = str(exc)
             LOGGER.warning("Models are unavailable: %s", exc)
+        except Exception:
+            application.state.load_error = "Models could not be loaded"
+            LOGGER.exception("Model runtime failed during startup")
         yield
 
     application = FastAPI(title="Traffic Scene Risk Assessment API", version="0.2.0", lifespan=lifespan)

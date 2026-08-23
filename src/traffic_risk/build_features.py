@@ -89,6 +89,9 @@ def compute_features(
         elif category == "traffic sign":
             n_sign += 1
 
+    if not boxes:
+        raise ValueError("Detector output contains no valid objects")
+
     counts = {color: sum(item[3] == color for item in lights) for color in ("red", "yellow", "green")}
     central_color, central_distance, central_area = "unknown", 1.0, 0.0
     candidates: list[tuple[float, float, str, float]] = []
