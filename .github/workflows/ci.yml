@@ -53,13 +53,13 @@ jobs:
         run: python -c "import joblib, sklearn; import traffic_risk.build_XGBoost, traffic_risk.train_tl_cnn"
       - name: Upload coverage report
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: python-coverage
           path: coverage.xml
       - name: Upload runtime coverage report
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: python-runtime-api-coverage
           path: coverage-runtime.xml
