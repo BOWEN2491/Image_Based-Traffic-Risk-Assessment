@@ -69,6 +69,15 @@ def test_metrics_and_decode_failure(tmp_path):
     assert result["p95_ms"] is None
 
 
+def test_evaluate_tiny_runtime_crop_records_abstention(tmp_path):
+    Image.new("RGB", (4, 4), "red").save(tmp_path / "tiny.png")
+    model = torch.nn.Sequential(torch.nn.AdaptiveAvgPool2d(1), torch.nn.Flatten(), torch.nn.Linear(3, 4))
+    result = experiment.evaluate(model, [{"path": "tiny.png", "label": "red", "runtime_size_gate": True}], tmp_path)
+    assert result["failures"] == 0
+    assert result["predictions"][0]["runtime_prediction"] == experiment.CLASS_MAPPING["unknown"]
+    assert result["predictions"][0]["abstained"] is True
+
+
 def test_invalid_time_limit(tmp_path):
     with pytest.raises(SystemExit):
         experiment.main(["--manifest", str(tmp_path), "--output", str(tmp_path), "--max-seconds", "1801"])

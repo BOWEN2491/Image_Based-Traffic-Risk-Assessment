@@ -11,7 +11,7 @@ from typing import Any
 import cv2
 import numpy as np
 
-from .cnn_contract import CLASS_MAPPING, contract, validate_contract, make_model, inference_transform
+from .cnn_contract import CLASS_MAPPING, classify_logits, contract, validate_contract, make_model, inference_transform
 from .config import Settings
 from .contracts import ModelManifest
 from .schema import MODEL_FEATURES, SCHEMA_VERSION, validate_model_features
@@ -188,9 +188,8 @@ class ModelRuntime:
         rgb = cv2.cvtColor(image[int(y1) : int(y2), int(x1) : int(x2)], cv2.COLOR_BGR2RGB)
         tensor = self.cnn_transform(Image.fromarray(rgb)).unsqueeze(0).to(self.settings.device)
         with torch.inference_mode():
-            probabilities = torch.softmax(self.cnn(tensor), dim=1)[0]
-        confidence, index = probabilities.max(dim=0)
-        return self.class_names[int(index)] if float(confidence) >= 0.5 else "unknown"
+            label, _, _, _ = classify_logits(self.cnn(tensor))
+        return label
 
     def detect(self, image_path: str | Path) -> dict[str, Any]:
         if self.yolo is None or (self.settings.mode == "models" and self.cnn is None):

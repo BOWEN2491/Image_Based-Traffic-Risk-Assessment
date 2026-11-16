@@ -151,37 +151,15 @@ def test_build_local_manifest_command_hashes_all_assets(tmp_path):
     assert len(manifest["assets"]) == 6
 
 
-def test_standalone_traffic_light_loader_contract(monkeypatch, tmp_path):
+def test_standalone_traffic_light_loader_rejects_noncontract_mapping(tmp_path):
     from traffic_risk import predict_tl_color
 
-    class Model:
-        def __init__(self):
-            self.fc = SimpleNamespace(in_features=4)
-
-        def load_state_dict(self, state, strict):
-            assert state == {"weight": 1} and strict is True
-
-        def eval(self):
-            return self
-
-        def to(self, device):
-            assert device == "cpu"
-            return self
-
-    fake_torch = SimpleNamespace(
-        nn=SimpleNamespace(Linear=lambda *_args: object()),
-        load=lambda *_args, **_kwargs: {"weight": 1},
-    )
-    fake_torchvision = SimpleNamespace(models=SimpleNamespace(resnet18=lambda weights=None: Model()))
-    monkeypatch.setitem(sys.modules, "torch", fake_torch)
-    monkeypatch.setitem(sys.modules, "torchvision", fake_torchvision)
     model_path = tmp_path / "model.pth"
     mapping_path = tmp_path / "mapping.json"
     model_path.write_bytes(b"weights")
     mapping_path.write_text(json.dumps({"red": 0, "green": 1}), encoding="utf-8")
-    model, names = predict_tl_color.load_model(model_path, mapping_path)
-    assert names == {0: "red", 1: "green"}
-    assert model is not None
+    with pytest.raises(ValueError, match="exactly match"):
+        predict_tl_color.load_model(model_path, mapping_path)
 
 
 def test_weak_labels_command_writes_output(tmp_path, monkeypatch):
