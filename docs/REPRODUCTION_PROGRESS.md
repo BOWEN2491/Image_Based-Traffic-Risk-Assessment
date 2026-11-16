@@ -52,6 +52,15 @@ P0 executed on Windows, 2026-11-13:
 - Headless Chromium exercised a real image upload through Vite proxy to the real rules API, checked the rendered unknown response, simulated a busy/503 response, and rejected invalid file type. No browser JavaScript errors.
 - Local-only browser evidence: `logs/browser/report.json`, `logs/browser/real-result.png`, `logs/browser-smoke.log`. Dataset images/screenshots are not committed.
 
+## Final local release gates (2026-11-15)
+
+- Patched dependency environment: full resolver installation and `pip check` pass; Python audit has no known findings among audited distributions, with the documented project/CPU-Torch build skips. npm audit reports zero findings.
+- Full suite: **137 passed**, **83.96%** coverage (required 80%). Runtime/API gate: **69 passed**, **85.64%** coverage (required 85%). Compile and Ruff pass. Frontend lint, seven tests and production build pass.
+- Final 0.2.2 wheel installed into a separate CPU-only environment and tested outside the source directory: installed package location, version, packaged resources, default paths, CLI, new module imports and `pip check` pass.
+- That isolated installation downloads and verifies the public model into a fresh directory, reports ready, returns a valid rules API response, and passes doctor. Local evidence: `logs/wheel-final-verify.log`, `logs/wheel-final-smoke.log`, `logs/wheel-final-doctor.json`.
+- Post-security-update real road-image API smoke and offline inference with socket connections blocked pass; evidence is `logs/final-fixed-real-smoke.log` and `logs/final-fixed-offline.json`.
+- Public inference, local bundle contracts and bounded research experiments have local evidence. Windows/Linux Python 3.11/3.12 remote CI is the remaining merge gate; no claim of its success is made before the working-branch PR runs.
+
 ## Final local release validation (2026-11-15)
 
 - Patched CPU/dev locks: pip check passed; PyPI audit found no known vulnerabilities in audited packages. CPU Torch/Torchvision wheels are outside the PyPI audit coverage; see DEPENDENCY_UPDATES.md.
