@@ -13,7 +13,7 @@ import torch
 from PIL import Image
 from torch.utils.data import DataLoader, Dataset
 
-from .cnn_contract import CLASS_MAPPING, contract, inference_transform, make_model
+from .cnn_contract import CLASS_MAPPING, classify_logits, contract, inference_transform, make_model
 
 
 class Crops(Dataset):
@@ -67,17 +67,18 @@ def evaluate(model, records, root):
                         tiny = min(original.size) < 6
                 if tiny:
                     prediction, policy, confidence = CLASS_MAPPING["unknown"], CLASS_MAPPING["unknown"], 0.0
+                    abstained = True
                 else:
-                    probabilities = torch.softmax(model(tensor.unsqueeze(0)), dim=1)[0]
-                    confidence, index = probabilities.max(0)
-                    prediction = int(index)
-                    policy = prediction if float(confidence) >= 0.5 else CLASS_MAPPING["unknown"]
+                    label, confidence, raw_label, abstained = classify_logits(model(tensor.unsqueeze(0)))
+                    prediction = CLASS_MAPPING[raw_label]
+                    policy = CLASS_MAPPING[label]
                 latency.append((time.perf_counter() - started) * 1000)
                 targets.append(target)
                 predictions.append(prediction)
                 policy_predictions.append(policy)
                 rows.append({"path": record["path"], "target": target, "prediction": prediction,
-                             "runtime_prediction": policy, "confidence": float(confidence)})
+                             "runtime_prediction": policy, "confidence": confidence,
+                             "abstained": abstained})
             except (OSError, ValueError, RuntimeError) as exc:
                 failed += 1
                 rows.append({"path": record["path"], "error": type(exc).__name__})
