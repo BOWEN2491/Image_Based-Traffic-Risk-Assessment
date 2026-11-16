@@ -1,4 +1,4 @@
-# Model Card: Image-Based Traffic Risk Assessment v0.2.1
+# Model Card: Image-Based Traffic Risk Assessment v0.2.2
 
 ## Summary
 

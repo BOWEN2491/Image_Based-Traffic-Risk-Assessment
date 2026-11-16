@@ -14,14 +14,18 @@ from .config import Settings
 from .download_models import download
 
 
-def smoke(model_dir: Path) -> dict[str, object]:
+def smoke(model_dir: Path, image: Path | None = None) -> dict[str, object]:
     """Download/verify YOLO and exercise ``/ready`` plus ``/api/predict``."""
     from fastapi.testclient import TestClient
 
     download(model_dir)
     settings = Settings(mode="rules", model_dir=model_dir)
     stream = io.BytesIO()
-    Image.new("RGB", (64, 64), "gray").save(stream, format="PNG")
+    if image is None:
+        Image.new("RGB", (64, 64), "gray").save(stream, format="PNG")
+    else:
+        with Image.open(image) as source:
+            source.convert("RGB").save(stream, format="PNG")
     with TestClient(create_app(settings)) as client:
         ready = client.get("/ready")
         if ready.status_code != 200 or ready.json() != {"status": "ready", "mode": "rules"}:
@@ -41,8 +45,9 @@ def smoke(model_dir: Path) -> dict[str, object]:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--model-dir", type=Path, default=Path.cwd() / "models")
+    parser.add_argument("--image", type=Path, help="Optional local road image; otherwise use an empty synthetic image")
     args = parser.parse_args(argv)
-    print(json.dumps(smoke(args.model_dir), ensure_ascii=False, indent=2))
+    print(json.dumps(smoke(args.model_dir, args.image), ensure_ascii=False, indent=2))
     return 0
 
 

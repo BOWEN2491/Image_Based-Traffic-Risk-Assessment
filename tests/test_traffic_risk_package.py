@@ -246,7 +246,7 @@ def test_cli_parser_and_workflow_errors(tmp_path):
     from traffic_risk.cli import build_parser, main
     assert set(build_parser()._subparsers._group_actions[0].choices) == {
         "predict", "download-models", "build-features", "generate-weak-labels",
-        "train-risk", "train-traffic-light", "build-local-manifest", "review-roi", "merge-review", "smoke-rules",
+        "train-risk", "train-traffic-light", "build-local-manifest", "review-roi", "merge-review", "smoke-rules", "doctor", "evaluate-detection", "prepare-evaluation", "cnn-experiment",
     }
     with pytest.raises(FileNotFoundError):
         main(["build-local-manifest", "--model-dir", str(tmp_path / "missing"), "--output", str(tmp_path / "m.json")])

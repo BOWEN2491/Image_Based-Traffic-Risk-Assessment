@@ -1,6 +1,6 @@
 # Image-Based Traffic Risk Assessment
 
-> **v0.2.1 maintenance release:** the public runtime defaults to `RISK_MODE=rules`. The withdrawn v0.1.0 assets remain retained for audit, while BDD100K-derived CNN/XGBoost weights remain local-only and are not redistributed. See [docs/MODELS.md](docs/MODELS.md) for the asset contract and provenance limits.
+> **v0.2.2 maintenance release:** the public runtime defaults to `RISK_MODE=rules`. The withdrawn v0.1.0 assets remain retained for audit, while BDD100K-derived CNN/XGBoost weights remain local-only and are not redistributed. See [docs/MODELS.md](docs/MODELS.md) for the asset contract and provenance limits.
 
 An open research and teaching demo that estimates a coarse scene-risk category from a single road image. The pipeline combines YOLO object detection, a traffic-light colour classifier, structured scene features, deterministic rules, and an XGBoost classifier behind a FastAPI API and React interface.
 
@@ -62,6 +62,14 @@ traffic-risk download-models
 The downloader reads its packaged, versioned asset manifest and refuses files whose size or SHA-256 does not match. In the public rules mode, only the manifest-declared YOLO asset is required; local models mode additionally verifies the complete six-asset bundle before loading any checkpoint. Model binaries, BDD100K images, generated predictions, and training outputs are intentionally excluded from Git. See [docs/MODELS.md](docs/MODELS.md) for the asset trust and compatibility rules.
 
 Run one image through the command-line pipeline:
+
+Before inference, run the offline installation and asset diagnostic:
+
+```bash
+traffic-risk doctor
+```
+
+It reports dependency compatibility, mode and model integrity without loading weights or accessing the network. A nonzero exit status includes a repair hint. Optional workstation paths can be supplied using `traffic-risk doctor --config local/config.json`; this ignored JSON file accepts `model_dir`, `mode`, `model_manifest`, and `dataset_root`. The dataset path is optional for public inference. Run the real-model smoke below separately to verify execution.
 
 ```bash
 python -m traffic_risk.pipeline --img path/to/image.jpg
@@ -167,7 +175,7 @@ ruff check src tests tools
 pytest --cov=src --cov-report=term-missing --cov-fail-under=80
 
 # Runtime/API gate (the CI equivalent requires at least 85% coverage)
-pytest tests/test_app.py tests/test_model_tools.py tests/test_predict_pipeline.py tests/test_traffic_risk_package.py \
+pytest tests/test_app.py tests/test_model_tools.py tests/test_predict_pipeline.py tests/test_traffic_risk_package.py tests/test_public_rules_detection.py tests/test_local_bundle_roundtrip.py \
   -o addopts="--strict-markers" --cov=traffic_risk.app --cov=traffic_risk.model_runtime \
   --cov=traffic_risk.pipeline --cov-report=term-missing --cov-fail-under=85
 

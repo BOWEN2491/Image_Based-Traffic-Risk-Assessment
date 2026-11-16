@@ -15,10 +15,10 @@ from traffic_risk.pipeline import run_single_image
 from traffic_risk.schema import MODEL_FEATURES
 
 
-def smoke(model_dir: Path) -> dict[str, object]:
+def smoke(model_dir: Path, manifest: Path) -> dict[str, object]:
     import torch
 
-    runtime = ModelRuntime(Settings(model_dir=model_dir, device="cpu"))
+    runtime = ModelRuntime(Settings(mode="models", model_manifest=manifest, model_dir=model_dir, device="cpu"))
     runtime.load()
     with tempfile.TemporaryDirectory(prefix="risk-model-smoke-") as temporary:
         image_path = Path(temporary) / "smoke.jpg"
@@ -47,8 +47,9 @@ def smoke(model_dir: Path) -> dict[str, object]:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--model-dir", type=Path, default=Path.cwd() / "models")
+    parser.add_argument("--manifest", type=Path, required=True, help="Verified local full-model manifest")
     args = parser.parse_args()
-    print(json.dumps(smoke(args.model_dir), indent=2))
+    print(json.dumps(smoke(args.model_dir, args.manifest), indent=2))
 
 
 if __name__ == "__main__":

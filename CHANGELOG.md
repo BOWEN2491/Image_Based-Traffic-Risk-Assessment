@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.2.2] - 2026-11-15
+
+- Fixed public rules inference on traffic-light scenes without a local CNN and honored the configured inference device.
+- Separated public rules smoke from explicitly configured local full-model verification.
+- Added offline `doctor` diagnostics and reproducible workstation setup evidence.
+- Unified local manifest generation, CNN architecture/preprocessing metadata, strict checkpoint loading, and native model round-trip tests.
+- Added bounded source-grouped data preparation and CPU perception evaluation tools. Local annotation provenance remains unverified; no default detector or risk policy is upgraded by these experiments.
+- Updated frontend dependencies, including a reviewed Happy DOM security update; retained the existing user interface and API contract.
+- Patched six Python dependency pins, including reviewed Pillow 13 and filelock 4 compatibility, and validated the complete resolver and dependency audit without advisory exclusions.
+- Retained the existing public YOLO asset bundle and its checksums. CNN/XGBoost weights and dataset-derived outputs remain local-only.
+
 ## [0.2.1] - Maintenance hardening
 
 - Documented the rules-first public runtime and local-only CNN/XGBoost distribution boundary.
@@ -34,7 +45,8 @@ All notable changes to this project are documented here. The format follows Keep
 
 - BDD100K images, generated results, training outputs, caches, local paths, and binary models from the published tree.
 
-[Unreleased]: https://github.com/BOWEN2491/Image_Based-Traffic-Risk-Assessment/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/BOWEN2491/Image_Based-Traffic-Risk-Assessment/compare/v0.2.2...HEAD
+[0.2.2]: https://github.com/BOWEN2491/Image_Based-Traffic-Risk-Assessment/releases/tag/v0.2.2
 [0.2.1]: https://github.com/BOWEN2491/Image_Based-Traffic-Risk-Assessment/releases/tag/v0.2.1
 [0.1.0]: https://github.com/BOWEN2491/Image_Based-Traffic-Risk-Assessment/releases/tag/v0.1.0
 
