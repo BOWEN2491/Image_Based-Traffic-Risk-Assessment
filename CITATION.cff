@@ -4,10 +4,10 @@ title: "Image-Based Traffic Risk Assessment"
 type: software
 authors:
   - family-names: "Bowen"
-version: 0.2.2
-date-released: 2026-11-15
+version: 0.2.3
+date-released: 2026-11-16
 repository-code: "https://github.com/BOWEN2491/Image_Based-Traffic-Risk-Assessment"
-url: "https://github.com/BOWEN2491/Image_Based-Traffic-Risk-Assessment/releases/tag/v0.2.2"
+url: "https://github.com/BOWEN2491/Image_Based-Traffic-Risk-Assessment/releases/tag/v0.2.3"
 license: AGPL-3.0-only
 keywords:
   - computer vision

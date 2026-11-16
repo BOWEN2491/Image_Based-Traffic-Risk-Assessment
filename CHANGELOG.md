@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.3] - 2026-11-16
+
+- Added explicit inference reason codes so successful `unknown` abstentions are distinguishable from processing failures.
+- Unified the standalone traffic-light CNN command, runtime, and experiment confidence policy across ResNet18 and MobileNetV3-Small.
+- Added scheduled and change-triggered Windows/Linux CPU real-model smoke coverage while keeping controlled detector tests clearly identified as synthetic.
+- Reused the public v0.2.1 YOLO asset bundle; no CNN/XGBoost weights or road images are added to the release.
+
 ## [0.2.2] - 2026-11-15
 
 - Fixed public rules inference on traffic-light scenes without a local CNN and honored the configured inference device.
@@ -45,8 +52,9 @@ All notable changes to this project are documented here. The format follows Keep
 
 - BDD100K images, generated results, training outputs, caches, local paths, and binary models from the published tree.
 
-[Unreleased]: https://github.com/BOWEN2491/Image_Based-Traffic-Risk-Assessment/compare/v0.2.2...HEAD
-[0.2.2]: https://github.com/BOWEN2491/Image_Based-Traffic-Risk-Assessment/releases/tag/v0.2.2
+[Unreleased]: https://github.com/BOWEN2491/Image_Based-Traffic-Risk-Assessment/compare/v0.2.3...HEAD
+[0.2.3]: https://github.com/BOWEN2491/Image_Based-Traffic-Risk-Assessment/releases/tag/v0.2.3
+[0.2.2]: https://github.com/BOWEN2491/Image_Based-Traffic-Risk-Assessment/compare/v0.2.1...3a8cfae60f329b13f95a1ce5fe1d00897d6f7b64
 [0.2.1]: https://github.com/BOWEN2491/Image_Based-Traffic-Risk-Assessment/releases/tag/v0.2.1
 [0.1.0]: https://github.com/BOWEN2491/Image_Based-Traffic-Risk-Assessment/releases/tag/v0.1.0
 
