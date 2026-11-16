@@ -274,13 +274,36 @@ def test_rules_smoke_command_contract(monkeypatch, tmp_path):
 
     @app.post("/api/predict")
     async def predict():
-        return {"status": "uncertain", "risk": "unknown", "model_versions": {}}
+        return {"status": "uncertain", "risk": "unknown", "reason": "No supported objects", "reason_code": "no_supported_detections",
+                "features": {}, "model_versions": {}, "image_id": "test-image"}
 
     monkeypatch.setattr(smoke_rules, "download", lambda _path: None)
     monkeypatch.setattr(smoke_rules, "create_app", lambda _settings: app)
     result = smoke_rules.smoke(tmp_path / "models")
     assert result["ready"] == {"status": "ready", "mode": "rules"}
     assert result["prediction"]["risk"] == "unknown"
+
+
+@pytest.mark.parametrize("reason_code", ["perception_error", "unknown_code", "legacy_unspecified"])
+def test_rules_smoke_rejects_failures_and_unknown_codes(monkeypatch, tmp_path, reason_code):
+    from fastapi import FastAPI
+    from traffic_risk import smoke_rules
+
+    app = FastAPI()
+
+    @app.get("/ready")
+    async def ready():
+        return {"status": "ready", "mode": "rules"}
+
+    @app.post("/api/predict")
+    async def predict():
+        return {"status": "uncertain", "risk": "unknown", "reason": "arbitrary wording", "reason_code": reason_code,
+                "features": {}, "model_versions": {}, "image_id": "test-image"}
+
+    monkeypatch.setattr(smoke_rules, "download", lambda _path: None)
+    monkeypatch.setattr(smoke_rules, "create_app", lambda _settings: app)
+    with pytest.raises(RuntimeError, match="inference failure"):
+        smoke_rules.smoke(tmp_path / "models")
 
 
 def test_new_api_validation_helpers(tmp_path):

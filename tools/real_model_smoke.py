@@ -10,9 +10,11 @@ from pathlib import Path
 from PIL import Image
 
 from traffic_risk.config import Settings
+from traffic_risk.inference_outcome import REASON_CODES, is_processing_failure
 from traffic_risk.model_runtime import ModelRuntime
 from traffic_risk.pipeline import run_single_image
 from traffic_risk.schema import MODEL_FEATURES
+from traffic_risk.smoke_rules import smoke as smoke_rules
 
 
 def smoke(model_dir: Path, manifest: Path) -> dict[str, object]:
@@ -31,17 +33,38 @@ def smoke(model_dir: Path, manifest: Path) -> dict[str, object]:
         risk = runtime.predict_risk(dict.fromkeys(MODEL_FEATURES, 0.0))
         assert risk in {"low", "medium", "high"}
         response = run_single_image(image_path, runtime)
-    assert response["status"] in {"ok", "uncertain"}
-    assert response["risk"] in {"low", "medium", "high", "unknown"}
-    assert (response["status"] == "uncertain") == (response["risk"] == "unknown")
-    assert set(response) == {"status", "risk", "reason", "features", "model_versions"}
-    assert response["model_versions"] == runtime.versions
+    _validate_pipeline_response(response, runtime.versions)
+    if response["reason_code"] != "no_supported_detections":
+        raise RuntimeError("Synthetic gray image should produce no_supported_detections")
+    rules_api = smoke_rules(model_dir)
+    if rules_api["ready"].get("mode") != "rules":
+        raise RuntimeError("Public API readiness did not report rules mode")
     return {
         "yolo_results": len(yolo_result),
         "cnn_shape": list(cnn_logits.shape),
         "xgboost_risk": risk,
         "pipeline": response,
+        "rules_api": rules_api,
     }
+
+
+def _validate_pipeline_response(response: dict[str, object], expected_versions: dict[str, str]) -> None:
+    required = {"status", "risk", "reason", "reason_code", "features", "model_versions"}
+    if not required <= response.keys():
+        raise RuntimeError("Pipeline response is missing required fields")
+    if response["status"] not in {"ok", "uncertain"}:
+        raise RuntimeError("Pipeline returned an unsupported status")
+    if response["risk"] not in {"low", "medium", "high", "unknown"}:
+        raise RuntimeError("Pipeline returned an unsupported risk")
+    if (response["status"] == "uncertain") != (response["risk"] == "unknown"):
+        raise RuntimeError("Pipeline status and risk are inconsistent")
+    code = response["reason_code"]
+    if code not in REASON_CODES:
+        raise RuntimeError("Pipeline returned an unknown reason_code")
+    if is_processing_failure(code):
+        raise RuntimeError(f"Pipeline reported an inference failure: {code}")
+    if response["model_versions"] != expected_versions:
+        raise RuntimeError("Pipeline model versions do not match the loaded runtime")
 
 
 def main() -> None:

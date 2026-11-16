@@ -9,18 +9,28 @@ import argparse
 import csv
 import hashlib
 import json
+import logging
 from pathlib import Path
 import time
 
 CLASSES = ("person", "bicycle", "motorcycle", "car", "bus", "truck", "train", "traffic light")
 ALIASES = {"pedestrian": "person", "bike": "bicycle", "motor": "motorcycle"}
+LOGGER = logging.getLogger(__name__)
 
 
 def pipeline_failed(response):
-    return response["status"] == "uncertain" and response["reason"] not in {
-        "No supported road users or signals were detected",
-        "No conservative high-risk rule triggered; statistical models are disabled",
-    }
+    from .inference_outcome import is_processing_failure
+
+    reason_code = response.get("reason_code")
+    if reason_code is None:
+        # Historical local reports predate reason_code; retain their two known
+        # normal abstention reasons and treat every other legacy result as failure.
+        LOGGER.warning("Classifying a historical pipeline response without reason_code")
+        return response.get("status") == "uncertain" and response.get("reason") not in {
+            "No supported road users or signals were detected",
+            "No conservative high-risk rule triggered; statistical models are disabled",
+        }
+    return is_processing_failure(reason_code)
 
 
 def category(value):

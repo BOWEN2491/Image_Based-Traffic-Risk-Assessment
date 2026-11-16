@@ -58,6 +58,7 @@ def test_health_ready_and_success_use_uuid_and_cleanup(tmp_path):
     assert response.status_code == 200
     body = response.json()
     assert body["status"] == "ok" and body["risk"] == "low"
+    assert body["reason_code"] == "model_prediction"
     assert body["image_id"] not in {"escape", "../../escape"}
     assert not list((tmp_path / "uploads").iterdir())
 
@@ -73,6 +74,13 @@ def test_models_not_ready(tmp_path):
         assert client.get("/health").status_code == 200
         assert client.get("/ready").status_code == 503
         assert client.post("/api/predict", files={"file": ("x.png", image_bytes(), "image/png")}).status_code == 503
+
+
+def test_legacy_prediction_response_defaults_to_unspecified_reason():
+    from traffic_risk.app import PredictionResponse
+
+    response = PredictionResponse(status="uncertain", risk="unknown", image_id="legacy", reason="old", features={}, model_versions={})
+    assert response.reason_code == "legacy_unspecified"
 
 
 def test_empty_unsupported_mismatch_corrupt_and_oversize(tmp_path):

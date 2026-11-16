@@ -35,6 +35,11 @@ class PredictionResponse(BaseModel):
     risk: Literal["low", "medium", "high", "unknown"]
     image_id: str
     reason: str
+    reason_code: Literal[
+        "hard_rule_triggered", "model_prediction", "no_supported_detections", "no_rule_triggered",
+        "feature_schema_error", "perception_error", "invalid_features", "invalid_model_output",
+        "legacy_unspecified",
+    ] = "legacy_unspecified"
     features: dict[str, Any]
     model_versions: dict[str, str]
 
