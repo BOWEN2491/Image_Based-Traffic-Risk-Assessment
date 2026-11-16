@@ -46,3 +46,21 @@ Never load an untrusted `.pkl`, `.pickle`, or `.joblib` file. Python deserializa
 
 A model update requires a new manifest version, digests calculated from the final uploaded bytes, a model-card update, compatibility tests, and a release note. Do not silently replace an asset at an existing release URL. Model tests that require large assets belong in the manual smoke workflow; ordinary pull-request tests use mocks.
 
+
+## Local CNN training contract
+
+Runtime-compatible CNNs use `resnet18` or `mobilenetv3` (MobileNetV3-Small),
+128x128 RGB input, ImageNet normalization, and the exact class mapping
+`green=0, red=1, unknown=2, yellow=3`. Training and runtime share these definitions.
+The trainer writes `cnn_contract` in its `model_metadata.json`; copy this file
+beside `cnn/best_model.pth` before building a local manifest. The builder embeds
+that contract in the integrity manifest. Experimental simple networks, different
+image sizes, or different class sets remain usable offline but are rejected for
+runtime bundles. Historical six-file bundles without CNN metadata retain the
+explicit ResNet18/128 legacy contract and must still pass strict weight loading.
+
+`traffic-risk build-local-manifest --model-dir LOCAL_BUNDLE --output LOCAL_MANIFEST`
+generates the same class/feature contracts required by the loader. Test a complete
+local bundle with `python -m tools.real_model_smoke --model-dir LOCAL_BUNDLE
+--manifest LOCAL_MANIFEST` (put both arguments on the same command line).
+Public smoke is separate: `traffic-risk smoke-rules --image YOUR_ROAD_IMAGE`.

@@ -16,7 +16,7 @@ anyio==4.14.2
     #   image-based-traffic-risk-assessment (pyproject.toml)
     #   starlette
     #   watchfiles
-certifi==2026.7.22
+certifi==2026.10.18
     # via
     #   httpcore
     #   httpx
@@ -33,7 +33,7 @@ cycler==0.12.1
     # via matplotlib
 fastapi==0.141.1
     # via image-based-traffic-risk-assessment (pyproject.toml)
-filelock==3.32.3
+filelock==4.2.10
     # via
     #   torch
     #   ultralytics
@@ -90,7 +90,7 @@ packaging==26.3
     # via matplotlib
 pandas==2.3.3
     # via image-based-traffic-risk-assessment (pyproject.toml)
-pillow==12.3.0
+pillow==13.0.0
     # via
     #   image-based-traffic-risk-assessment (pyproject.toml)
     #   matplotlib
@@ -165,7 +165,7 @@ ultralytics-platform==0.1.11
     # via ultralytics
 ultralytics-thop==2.1.6
     # via ultralytics
-urllib3==2.7.0
+urllib3==2.8.0
     # via requests
 uvicorn==0.52.4
     # via image-based-traffic-risk-assessment (pyproject.toml)
@@ -177,5 +177,5 @@ xgboost-cpu==3.2.0 ; sys_platform == "win32" or sys_platform == "linux"
     # via image-based-traffic-risk-assessment (pyproject.toml)
 
 # The following packages are considered to be unsafe in a requirements file:
-setuptools==84.0.0
+setuptools==84.1.0
     # via torch

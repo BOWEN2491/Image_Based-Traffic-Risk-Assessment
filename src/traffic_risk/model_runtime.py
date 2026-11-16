@@ -11,13 +11,14 @@ from typing import Any
 import cv2
 import numpy as np
 
+from .cnn_contract import CLASS_MAPPING, contract, validate_contract, make_model, inference_transform
 from .config import Settings
 from .contracts import ModelManifest
 from .schema import MODEL_FEATURES, SCHEMA_VERSION, validate_model_features
 
 
 MANIFEST = files(__package__).joinpath("model_manifest.json")
-EXPECTED_MAPPING = {"green": 0, "red": 1, "unknown": 2, "yellow": 3}
+EXPECTED_MAPPING = CLASS_MAPPING
 EXPECTED_DESTINATIONS = {
     "yolo/yolo11n.pt",
     "cnn/best_model.pth",
@@ -138,6 +139,7 @@ class ModelRuntime:
                 raise ModelUnavailableError("Risk model manifest schema is incompatible")
             if metadata.get("train_cols_nosignal") != list(MODEL_FEATURES):
                 raise ModelUnavailableError("Risk model metadata schema is incompatible")
+            self.cnn_contract = validate_contract(assets["best_model.pth"].get("cnn_contract", contract()))
             self.class_names = {index: name for name, index in mapping.items()}
         except ModelUnavailableError:
             raise
@@ -154,23 +156,14 @@ class ModelRuntime:
             if self.settings.mode == "rules":
                 return
             import torch
-            import torch.nn as nn
             import xgboost as xgb
-            from torchvision import models, transforms
-            cnn = models.resnet18(weights=None)
-            cnn.fc = nn.Linear(cnn.fc.in_features, len(EXPECTED_MAPPING))
+            cnn = make_model(self.cnn_contract["architecture"])
             state = torch.load(self.settings.cnn_path, map_location=self.settings.device, weights_only=True)
             if not isinstance(state, dict) or not all(isinstance(key, str) for key in state):
                 raise ModelUnavailableError("CNN asset is not a state dictionary")
             cnn.load_state_dict(state, strict=True)
             self.cnn = cnn.eval().to(self.settings.device)
-            self.cnn_transform = transforms.Compose(
-                [
-                    transforms.Resize((128, 128)),
-                    transforms.ToTensor(),
-                    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
-                ]
-            )
+            self.cnn_transform = inference_transform()
             self.booster = xgb.Booster()
             self.booster.load_model(self.settings.risk_model_path)
             if self.booster.num_features() != len(MODEL_FEATURES):
@@ -206,7 +199,8 @@ class ModelRuntime:
         if image is None:
             raise PerceptionError("Image could not be decoded")
         try:
-            result = self.yolo.predict(source=str(image_path), conf=0.25, iou=0.45, verbose=False)[0]
+            result = self.yolo.predict(source=str(image_path), conf=0.25, iou=0.45,
+                                       device=self.settings.device, verbose=False)[0]
             names = result.names
             objects: list[dict[str, Any]] = []
             supported = {
@@ -226,7 +220,7 @@ class ModelRuntime:
                     continue
                 coords = detected.xyxy.cpu().numpy().reshape(-1).tolist()
                 color = "unknown"
-                if category == "traffic light":
+                if category == "traffic light" and self.settings.mode == "models":
                     color = self._traffic_light_color(image, tuple(round(value) for value in coords))
                 objects.append(
                     {

@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools>=77"]
+requires = ["setuptools>=84.1.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "image-based-traffic-risk-assessment"
-version = "0.2.1"
+version = "0.2.2"
 description = "Research demo for image-based traffic scene risk assessment"
 readme = "README.md"
 authors = [{name = "Bowen Zheng", email = "zbowen159@gmail.com"}]
@@ -20,7 +20,7 @@ dependencies = [
   "numpy>=2.0,<3",
   "opencv-python>=4.10,<6",
   "pandas>=2.2,<3",
-  "pillow>=11,<13",
+  "pillow>=13,<14",
   "pydantic>=2.10,<3",
   "python-multipart>=0.0.20,<1",
   "torch>=2.7,<3",

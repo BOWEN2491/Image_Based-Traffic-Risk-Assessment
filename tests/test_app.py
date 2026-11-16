@@ -12,6 +12,7 @@ from starlette.datastructures import UploadFile
 from traffic_risk.app import create_app
 from traffic_risk import app as app_module
 from traffic_risk.config import Settings
+from traffic_risk import __version__
 from traffic_risk.model_runtime import ModelUnavailableError
 
 
@@ -59,6 +60,11 @@ def test_health_ready_and_success_use_uuid_and_cleanup(tmp_path):
     assert body["status"] == "ok" and body["risk"] == "low"
     assert body["image_id"] not in {"escape", "../../escape"}
     assert not list((tmp_path / "uploads").iterdir())
+
+
+def test_openapi_version_matches_installed_package(tmp_path):
+    application = create_app(settings(tmp_path), Runtime)
+    assert application.openapi()["info"]["version"] == __version__
 
 
 def test_models_not_ready(tmp_path):

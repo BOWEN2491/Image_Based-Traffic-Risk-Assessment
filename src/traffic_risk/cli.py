@@ -3,18 +3,13 @@ from __future__ import annotations
 
 import argparse
 import json
-import pandas as pd
 import sys
 import hashlib
 from pathlib import Path
 
-from .config import Settings
-from .contracts import AssetRecord, ModelManifest
-from .model_runtime import ModelRuntime, ModelUnavailableError
-from .pipeline import run_single_image
 
 
-COMMANDS = ("predict", "download-models", "build-features", "generate-weak-labels", "train-risk", "train-traffic-light", "build-local-manifest", "review-roi", "merge-review", "smoke-rules")
+COMMANDS = ("predict", "download-models", "build-features", "generate-weak-labels", "train-risk", "train-traffic-light", "build-local-manifest", "review-roi", "merge-review", "smoke-rules", "doctor", "evaluate-detection", "prepare-evaluation", "cnn-experiment")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -30,6 +25,14 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     raw = list(argv if argv is not None else sys.argv[1:])
+    if raw and raw[0] == "doctor":
+        from .doctor import main as doctor_main
+        return doctor_main(raw[1:])
+    import pandas as pd
+    from .config import Settings
+    from .contracts import AssetRecord, ModelManifest
+    from .model_runtime import ModelRuntime, ModelUnavailableError
+    from .pipeline import run_single_image
     command = raw[0] if raw else None
     if command and command in COMMANDS[1:]:
         args = argparse.Namespace(command=command, args=raw[1:])
@@ -54,6 +57,9 @@ def main(argv: list[str] | None = None) -> int:
             "review-roi": "traffic_risk.review_roi_labeler",
             "merge-review": "traffic_risk.merge_review_back",
             "smoke-rules": "traffic_risk.smoke_rules",
+            "evaluate-detection": "traffic_risk.evaluate_detection",
+            "prepare-evaluation": "traffic_risk.prepare_evaluation",
+            "cnn-experiment": "traffic_risk.cnn_experiment",
         }
         if args.command == "build-local-manifest":
             parser = argparse.ArgumentParser(prog="traffic-risk build-local-manifest")
@@ -64,20 +70,31 @@ def main(argv: list[str] | None = None) -> int:
                 "yolo/yolo11n.pt", "cnn/best_model.pth", "cnn/class_indices.json",
                 "risk/risk_xgb.ubj", "risk/feature_order.json", "risk/model_metadata.json",
             )
+            from .cnn_contract import CLASS_MAPPING, contract, validate_contract
+            from .schema import MODEL_FEATURES, SCHEMA_VERSION
+            cnn_metadata_path = options.model_dir / "cnn/model_metadata.json"
+            cnn_contract = contract()  # Historical six-asset bundles are ResNet18/128.
+            if cnn_metadata_path.exists():
+                metadata = json.loads(cnn_metadata_path.read_text(encoding="utf-8"))
+                cnn_contract = validate_contract(metadata.get("cnn_contract"))
             assets = []
             for relative in destinations:
                 path = options.model_dir / relative
                 if not path.is_file():
                     raise FileNotFoundError(path)
                 digest = hashlib.sha256(path.read_bytes()).hexdigest()
-                assets.append(AssetRecord(destination=relative, name=Path(relative).name, size=path.stat().st_size, sha256=digest))
+                extra = {}
+                if relative == "cnn/best_model.pth":
+                    extra = {"class_mapping": CLASS_MAPPING, "cnn_contract": cnn_contract}
+                elif relative == "risk/risk_xgb.ubj":
+                    extra = {"feature_schema": {"version": SCHEMA_VERSION, "features": list(MODEL_FEATURES)}}
+                assets.append(AssetRecord(destination=relative, name=Path(relative).name, size=path.stat().st_size, sha256=digest, **extra))
             manifest = ModelManifest(
                 release="local",
                 distribution_status="local",
                 contract="traffic-risk",
                 schema_version="2.0.0",
                 model_versions={
-                    "mode": "models",
                     "yolo": "local",
                     "traffic_light_cnn": "local",
                     "risk_xgb": "local",
@@ -96,10 +113,10 @@ def main(argv: list[str] | None = None) -> int:
         old_argv = sys.argv
         try:
             sys.argv = [f"traffic-risk {args.command}", *forwarded]
-            workflow_main()
+            result = workflow_main()
         finally:
             sys.argv = old_argv
-        return 0
+        return result if isinstance(result, int) else 0
     if not args.image.is_file():
         raise FileNotFoundError(args.image)
     runtime = ModelRuntime(Settings())
@@ -112,4 +129,4 @@ def main(argv: list[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

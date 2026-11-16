@@ -18,6 +18,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image, UnidentifiedImageError
 from pydantic import BaseModel, model_validator
 
+from . import __version__
 from .config import Settings
 from .model_runtime import ModelRuntime, ModelUnavailableError
 from .pipeline import run_single_image
@@ -127,7 +128,7 @@ def create_app(
             LOGGER.exception("Model runtime failed during startup")
         yield
 
-    application = FastAPI(title="Traffic Scene Risk Assessment API", version="0.2.1", lifespan=lifespan)
+    application = FastAPI(title="Traffic Scene Risk Assessment API", version=__version__, lifespan=lifespan)
     application.add_middleware(
         CORSMiddleware,
         allow_origins=list(config.cors_origins),

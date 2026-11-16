@@ -23,7 +23,8 @@ import random
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, WeightedRandomSampler, Subset
-from torchvision import datasets, transforms, models
+from torchvision import datasets, transforms
+from .cnn_contract import CLASS_MAPPING, MEAN, STD, contract, inference_transform, make_model as make_runtime_model
 from PIL import Image
 
 def set_seed(seed: int = 42):
@@ -106,20 +107,8 @@ class SimpleCNN(nn.Module):
 
 def make_model(name: str, num_classes: int, pretrained: bool = True) -> nn.Module:
     name = name.lower()
-    if name == "resnet18":
-        m = models.resnet18(
-            weights=models.ResNet18_Weights.DEFAULT if pretrained else None
-        )
-        in_f = m.fc.in_features
-        m.fc = nn.Linear(in_f, num_classes)
-        return m
-    elif name == "mobilenetv3":
-        m = models.mobilenet_v3_small(
-            weights=models.MobileNet_V3_Small_Weights.DEFAULT if pretrained else None
-        )
-        in_f = m.classifier[-1].in_features
-        m.classifier[-1] = nn.Linear(in_f, num_classes)
-        return m
+    if name in {"resnet18", "mobilenetv3"}:
+        return make_runtime_model(name, num_classes, pretrained)
     elif name == "simple":
         return SimpleCNN(num_classes=num_classes)
     else:
@@ -241,8 +230,8 @@ def main():
                 transforms.Resize((args.img_size, args.img_size)),
                 transforms.ToTensor(),
                 transforms.Normalize(
-                    mean=[0.485, 0.456, 0.406],
-                    std=[0.229, 0.224, 0.225],
+                    mean=MEAN,
+                    std=STD,
                 ),
             ]
         )
@@ -279,23 +268,13 @@ def main():
             ),
             transforms.ToTensor(),
             transforms.Normalize(
-                mean=[0.485, 0.456, 0.406],
-                std=[0.229, 0.224, 0.225],
+                mean=MEAN,
+                std=STD,
             ),
         ]
     )
-    val_tfm = transforms.Compose(
-        [
-            transforms.Resize((args.img_size, args.img_size)),
-            transforms.ToTensor(),
-            transforms.Normalize(
-                mean=[0.485, 0.456, 0.406],
-                std=[0.229, 0.224, 0.225],
-            ),
-        ]
-    )
+    val_tfm = inference_transform(args.img_size)
 
-    # 整体数据集（只初始化一次 ImageFolder，再用 indices 切分）
     full_ds = datasets.ImageFolder(root=str(data_dir))
     class_to_idx = full_ds.class_to_idx
     idx_to_class = {v: k for k, v in class_to_idx.items()}
@@ -361,6 +340,7 @@ def main():
     ) as fjs:
         json.dump(class_to_idx, fjs, ensure_ascii=False, indent=2)
 
+    best_epoch = 0
     best_val_acc = 0.0
     best_val_loss = float("inf")
     bad_epochs = 0
@@ -404,10 +384,11 @@ def main():
         # Checkpoint and early stopping use validation loss only; epoch one always saves.
         improved = va_loss < best_val_loss - 1e-4
         if improved or epoch == 1:
+            best_epoch = epoch
             best_val_acc = va_acc
             torch.save(model.state_dict(), best_path)
             print(
-                f"  [*] Saved new best (by acc) to: {best_path}  "
+                f"  [*] Saved new best (by loss) to: {best_path}  "
                 f"(val_acc={best_val_acc:.3f})"
             )
 
@@ -438,7 +419,12 @@ def main():
             {
                 "contract": "traffic-risk",
                 "schema_version": "2.0.0",
-                "best_epoch": epoch,
+                "best_epoch": best_epoch,
+                "architecture": args.model,
+                "image_size": args.img_size,
+                "class_mapping": class_to_idx,
+                "runtime_compatible": args.model in {"resnet18", "mobilenetv3"} and args.img_size == 128 and class_to_idx == CLASS_MAPPING,
+                "cnn_contract": contract(args.model) if args.model in {"resnet18", "mobilenetv3"} and args.img_size == 128 and class_to_idx == CLASS_MAPPING else None,
                 "best_loss": best_val_loss,
                 "val_accuracy": best_val_acc,
                 "seed": args.seed,
