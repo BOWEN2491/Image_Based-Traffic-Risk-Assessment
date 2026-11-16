@@ -12,6 +12,7 @@ from PIL import Image
 from .app import create_app
 from .config import Settings
 from .download_models import download
+from .inference_outcome import REASON_CODES, is_processing_failure
 
 
 def smoke(model_dir: Path, image: Path | None = None) -> dict[str, object]:
@@ -37,8 +38,27 @@ def smoke(model_dir: Path, image: Path | None = None) -> dict[str, object]:
         if response.status_code != 200:
             raise RuntimeError(f"rules prediction failed: {response.status_code} {response.text}")
         payload = response.json()
+        required = {"status", "risk", "reason", "reason_code", "features", "model_versions", "image_id"}
+        if not required <= payload.keys():
+            raise RuntimeError("rules smoke response is missing required fields")
+        if payload["status"] not in {"ok", "uncertain"}:
+            raise RuntimeError("rules smoke returned an unsupported status")
         if payload.get("risk") not in {"high", "unknown"}:
             raise RuntimeError("rules smoke returned a fabricated low/medium risk")
+        if (payload["status"] == "uncertain") != (payload["risk"] == "unknown"):
+            raise RuntimeError("rules smoke returned inconsistent status and risk")
+        code = payload["reason_code"]
+        if code not in REASON_CODES or is_processing_failure(code):
+            raise RuntimeError(f"rules smoke reported an inference failure: {code}")
+        allowed = {"hard_rule_triggered", "no_supported_detections", "no_rule_triggered"}
+        if code not in allowed:
+            raise RuntimeError(f"rules smoke returned an unexpected reason_code: {code}")
+        if code == "hard_rule_triggered" and (payload["status"], payload["risk"]) != ("ok", "high"):
+            raise RuntimeError("hard_rule_triggered must return ok/high")
+        if code in {"no_supported_detections", "no_rule_triggered"} and (payload["status"], payload["risk"]) != ("uncertain", "unknown"):
+            raise RuntimeError(f"{code} must return uncertain/unknown")
+        if image is None and code != "no_supported_detections":
+            raise RuntimeError("Synthetic gray image should produce no_supported_detections")
         return {"ready": ready.json(), "prediction": payload}
 
 
@@ -52,4 +72,4 @@ def main(argv: list[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

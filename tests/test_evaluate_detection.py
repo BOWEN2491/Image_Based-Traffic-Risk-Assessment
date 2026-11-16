@@ -7,6 +7,9 @@ def test_caught_pipeline_errors_count_as_failures_but_abstentions_do_not():
     assert pipeline_failed({"status": "uncertain", "reason": "Perception could not produce a reliable result"})
     assert not pipeline_failed({"status": "uncertain", "reason": "No supported road users or signals were detected"})
     assert not pipeline_failed({"status": "ok", "reason": "rule"})
+    assert not pipeline_failed({"status": "uncertain", "reason": "localized wording", "reason_code": "no_rule_triggered"})
+    assert pipeline_failed({"status": "uncertain", "reason": "whatever", "reason_code": "perception_error"})
+    assert pipeline_failed({"status": "uncertain", "reason": "whatever", "reason_code": "new_unrecognized_code"})
 
 
 def obj(name="car", score=.9, box=(0, 0, 10, 10)):

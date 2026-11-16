@@ -27,12 +27,13 @@ class Runtime(Protocol):
 
 def run_single_image(image_path: str | Path, runtime: Runtime) -> dict[str, Any]:
     path = Path(image_path)
+    phase = "features"
     try:
         detected = runtime.detect(path)
         frames = detected.get("frames", [])
         objects = frames[0].get("objects", []) if frames else []
         if not objects:
-            return _uncertain("No supported road users or signals were detected", runtime)
+            return _uncertain("No supported road users or signals were detected", runtime, reason_code="no_supported_detections")
         features = build_features_from_bdd(detected, path)
         validate_model_features(features)
         override, reason = apply_hard_rules(features)
@@ -41,38 +42,54 @@ def run_single_image(image_path: str | Path, runtime: Runtime) -> dict[str, Any]
             if risk == "high":
                 return {
                     "status": "ok", "risk": "high", "reason": reason or "Conservative rule triggered",
+                    "reason_code": "hard_rule_triggered",
                     "features": public_features(features), "model_versions": runtime.versions,
                 }
-            return _uncertain("No conservative high-risk rule triggered; statistical models are disabled", runtime, features)
+            return _uncertain(
+                "No conservative high-risk rule triggered; statistical models are disabled",
+                runtime,
+                features,
+                reason_code="no_rule_triggered",
+            )
         if risk is None:
+            phase = "model"
             risk = runtime.predict_risk(features)
             risk, signal_reason = apply_signal_policy(risk, features)
             reason = signal_reason or "Risk model prediction; no hard rule triggered"
         if risk not in {"low", "medium", "high"}:
-            return _uncertain("Risk model returned an unsupported class", runtime, features)
+            return _uncertain("Risk model returned an unsupported class", runtime, features, reason_code="invalid_model_output")
         return {
             "status": "ok",
             "risk": risk,
             "reason": reason,
+            "reason_code": "hard_rule_triggered" if override == "high" else "model_prediction",
             "features": public_features(features),
             "model_versions": runtime.versions,
         }
     except FeatureSchemaError:
         LOGGER.exception("Feature schema validation failed during inference")
-        return _uncertain("Extracted features did not match the model schema", runtime)
+        return _uncertain("Extracted features did not match the model schema", runtime, reason_code="feature_schema_error")
     except PerceptionError:
         LOGGER.exception("Perception failed during inference")
-        return _uncertain("Perception could not produce a reliable result", runtime)
+        return _uncertain("Perception could not produce a reliable result", runtime, reason_code="perception_error")
     except ValueError:
         LOGGER.exception("Invalid data encountered during inference")
-        return _uncertain("Image features could not be processed reliably", runtime)
+        code = "invalid_model_output" if phase == "model" else "invalid_features"
+        return _uncertain("Image features could not be processed reliably", runtime, reason_code=code)
 
 
-def _uncertain(reason: str, runtime: Runtime, features: dict[str, Any] | None = None) -> dict[str, Any]:
+def _uncertain(
+    reason: str,
+    runtime: Runtime,
+    features: dict[str, Any] | None = None,
+    *,
+    reason_code: str,
+) -> dict[str, Any]:
     return {
         "status": "uncertain",
         "risk": "unknown",
         "reason": reason,
+        "reason_code": reason_code,
         "features": public_features(features or {}),
         "model_versions": runtime.versions,
     }
