@@ -52,22 +52,11 @@ P0 executed on Windows, 2026-11-13:
 - Headless Chromium exercised a real image upload through Vite proxy to the real rules API, checked the rendered unknown response, simulated a busy/503 response, and rejected invalid file type. No browser JavaScript errors.
 - Local-only browser evidence: `logs/browser/report.json`, `logs/browser/real-result.png`, `logs/browser-smoke.log`. Dataset images/screenshots are not committed.
 
-## Final local release gates (2026-11-15)
+## Final local release validation (2026-11-15)
 
 - Patched dependency environment: full resolver installation and `pip check` pass; Python audit has no known findings among audited distributions, with the documented project/CPU-Torch build skips. npm audit reports zero findings.
 - Full suite: **137 passed**, **83.96%** coverage (required 80%). Runtime/API gate: **69 passed**, **85.64%** coverage (required 85%). Compile and Ruff pass. Frontend lint, seven tests and production build pass.
-- Final 0.2.2 wheel installed into a separate CPU-only environment and tested outside the source directory: installed package location, version, packaged resources, default paths, CLI, new module imports and `pip check` pass.
-- That isolated installation downloads and verifies the public model into a fresh directory, reports ready, returns a valid rules API response, and passes doctor. Local evidence: `logs/wheel-final-verify.log`, `logs/wheel-final-smoke.log`, `logs/wheel-final-doctor.json`.
-- Post-security-update real road-image API smoke and offline inference with socket connections blocked pass; evidence is `logs/final-fixed-real-smoke.log` and `logs/final-fixed-offline.json`.
-- Public inference, local bundle contracts and bounded research experiments have local evidence. Windows/Linux Python 3.11/3.12 remote CI is the remaining merge gate; no claim of its success is made before the working-branch PR runs.
-
-## Final local release validation (2026-11-15)
-
-- Patched CPU/dev locks: pip check passed; PyPI audit found no known vulnerabilities in audited packages. CPU Torch/Torchvision wheels are outside the PyPI audit coverage; see DEPENDENCY_UPDATES.md.
-- Full Python suite: 137 passed, 83.96% coverage (80% gate).
-- Runtime/API suite: 69 passed, 85.64% coverage (85% gate).
-- Compileall, Ruff, frontend lint, seven frontend tests, production build and whitespace checks passed.
-- Final 0.2.2 wheel installed into an isolated environment outside the source tree; packaged resources, CLI imports, dependency checks, fresh public model download/checksum, ready/API smoke and doctor passed.
-- Real road-image API and browser upload checks passed. Local images, weights and logs remain ignored.
-- Bounded experiments completed; see EXPERIMENT_RESULTS.md and CNN_EXPERIMENT_RESULTS.md. Both public default models remain unchanged. Repeated detector timing did not meet the candidate latency gate, and CNN quality did not improve.
-- Windows/Linux Python 3.11/3.12 hosted CI remains pending until the working branch PR runs. No hosted verification or release publication is claimed by the local results above.
+- Final 0.2.2 wheel installed into an isolated CPU-only environment outside the source tree. Packaged resources, CLI, dependency checks, fresh public model download/checksum, ready/API smoke, doctor, real road-image API, and offline inference passed. Local evidence: `logs/wheel-final-verify.log`, `logs/wheel-final-smoke.log`, `logs/wheel-final-doctor.json`, `logs/final-fixed-real-smoke.log`, and `logs/final-fixed-offline.json`.
+- Frontend browser upload, busy/503 handling, and invalid-file rejection passed. Local-only screenshots and logs remain under ignored `logs/browser/`.
+- Bounded experiments completed; see `EXPERIMENT_RESULTS.md` and `CNN_EXPERIMENT_RESULTS.md`. Both public defaults remain unchanged: the detector candidate failed repeated latency limits and the CNN candidate did not improve quality. Data provenance and independent risk labels remain unverified.
+- Hosted CI and Security passed for base SHA `3a8cfae60f329b13f95a1ce5fe1d00897d6f7b64` in [PR #27](https://github.com/BOWEN2491/Image_Based-Traffic-Risk-Assessment/pull/27) ([CI](https://github.com/BOWEN2491/Image_Based-Traffic-Risk-Assessment/actions/runs/43787567478), [Security](https://github.com/BOWEN2491/Image_Based-Traffic-Risk-Assessment/actions/runs/43787567425)). The v0.2.3 changes described in `NEXT_ITERATION_STATUS.md` still need their own hosted PR checks and release verification.
