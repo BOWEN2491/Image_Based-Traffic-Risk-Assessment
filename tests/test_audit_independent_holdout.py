@@ -4,6 +4,7 @@ import hashlib
 from io import BytesIO
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from PIL import Image
@@ -424,7 +425,7 @@ def test_candidate_false_pixel_hash_is_recomputed_and_excluded(tmp_path):
     assert result["gates"]["holdout_eligible"] is False
 
 
-def test_manifest_time_budget_is_enforced(tmp_path):
+def test_manifest_time_budget_is_enforced(tmp_path, monkeypatch):
     root = tmp_path / "data"
     root.mkdir()
     candidate = _row(root, "candidate")
@@ -434,8 +435,13 @@ def test_manifest_time_budget_is_enforced(tmp_path):
     provenance_path = _provenance(tmp_path / "provenance.json")
     output = tmp_path / "timeout-output"
 
+    clock = iter((10.0, 11.0))
+    monkeypatch.setattr(
+        "tools.audit_independent_holdout.time",
+        SimpleNamespace(monotonic=lambda: next(clock)),
+    )
     with pytest.raises(TimeoutError, match="time budget"):
-        audit(candidate_path, [history_path], provenance_path, root, output, max_seconds=1e-12)
+        audit(candidate_path, [history_path], provenance_path, root, output, max_seconds=0.5)
 
     assert not output.exists()
 
