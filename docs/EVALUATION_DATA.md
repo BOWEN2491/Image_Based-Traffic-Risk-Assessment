@@ -10,6 +10,25 @@ Run from an installed checkout using a local, Git-ignored JSON configuration:
 python -m traffic_risk.prepare_evaluation --config local/config.json --output results/evaluation-bounded
 ```
 
+Optional provenance metadata is a human-maintained JSON file passed with
+`--provenance local/provenance.json`. It uses schema version 1 with a
+`source_status` (`local-unverified` by default or `source-verified`), source
+provider/archive/URL/acquisition fields, archive SHA-256, verifier and date, and
+a separate `annotation_review` object. A verified status requires those fields
+to be complete and well-formed; validation checks structure only and does not
+authenticate a provider or checksum. Partial source information may be recorded
+while status stays `local-unverified`; present fields are format-checked and do
+not automatically change that status. Do not label a source verified without a
+named human verifier and verification date. Annotation review has its own status, reviewer,
+date, and scope. Promotion remains disabled until a new independent source and
+holdout have been established.
+
+One or more previous `images.jsonl` manifests may be supplied using repeated
+`--compare-manifest` options. The optional `cross_manifest_audit.json` compares
+sample IDs, group IDs, and decoded pixel hashes across roles; identity values
+are represented by hashes in the report. This is an overlap audit, not proof
+that two datasets are independent.
+
 The installed command `traffic-risk prepare-evaluation` accepts the same arguments.
 `traffic-risk evaluate-detection --help` and `traffic-risk cnn-experiment --help`
 describe the separate downstream evaluation and bounded training commands.
@@ -40,6 +59,9 @@ Outputs:
   and object IDs, crop box, group, split, crop hashes and parent hashes.
 - `excluded.jsonl`: invalid samples, duplicate pixels and group collisions.
 - `summary.json`: counts, seed, manifest hashes and explicit promotion blockers.
+- `provenance.json`: source provenance and separate annotation-review record;
+  image rows reference its SHA-256.
+- `cross_manifest_audit.json`: written when prior manifests were supplied.
 
 Group assignment uses `rideID` when available, with image-ID fallback recorded.
 Validation groups are deterministically assigned to `development` or `holdout`;
@@ -49,11 +71,23 @@ pixels and crop pixels are excluded globally, even when filenames differ.
 All crops from a source group stay in the same experiment split.
 
 Only original-image annotation boxes supply color labels. BDD `none` maps to
-`unknown`; crops smaller than six pixels in either dimension are omitted.
+`unknown`; missing weather, scene, time-of-day, occlusion, and truncation
+attributes remain explicitly `unknown`. Crops smaller than six pixels in either
+dimension are omitted. Image rows preserve frame weather/scene/time-of-day and
+each object carries the source occluded/truncated attributes, its box area ratio,
+area bin, shortest edge, and tiny flag (shortest edge below 6 pixels).
 The four classes are green, red, unknown and yellow. Validation crops are emitted
 separately and do not count toward the 2,000 training-crop limit. Detector-matched
 crop evaluation must separately report missed detections; accuracy on ground-truth
 crops alone is not end-to-end performance.
+
+`summary.json` reports validation ground-truth support independently for
+development and holdout: traffic-light color counts, target 100 and per-color
+shortfalls, box-area bins, tiny-object count, frame context counts, and known or
+unknown occlusion/truncation counts. Box-area bins use area/image-area ratios:
+small below 0.001, medium from 0.001 to below 0.01, and large at least 0.01.
+These counts describe annotations present in the selected bounded sample, not
+the full dataset; shortfalls are never filled by duplication or synthesis.
 
 These local annotations lack an authenticated upstream archive manifest. Every
 record therefore has `provenance=local-unverified` and `promotion_allowed=false`.
