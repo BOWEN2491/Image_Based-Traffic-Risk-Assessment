@@ -13,6 +13,7 @@ def box(category, coordinates):
     values = np.asarray([coordinates], dtype=float)
     return SimpleNamespace(
         cls=SimpleNamespace(item=lambda: category),
+        conf=SimpleNamespace(item=lambda: 0.9),
         xyxy=SimpleNamespace(cpu=lambda: SimpleNamespace(numpy=lambda: values)),
     )
 
