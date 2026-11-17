@@ -40,6 +40,7 @@ describe("risk assessment", () => {
         risk: "high",
         image_id: "img-123",
         reason: "Central traffic light is red.",
+        reason_code: "hard_rule_triggered",
         features: { central_tl_is_red: true, nearest_vehicle_distance: 8.4 },
         model_versions: { risk_model: "0.1.0" },
       }),
@@ -52,10 +53,11 @@ describe("risk assessment", () => {
     expect(await screen.findByText("Scene analyzed")).toBeInTheDocument();
     expect(screen.getByText("high risk")).toBeInTheDocument();
     expect(screen.getByText("Central traffic light is red.")).toBeInTheDocument();
+    expect(screen.getByText(/conservative traffic rule identified a high-risk condition/i)).toBeInTheDocument();
     expect(screen.getByText("central_tl_is_red")).toBeInTheDocument();
     expect(screen.getByText("risk_model")).toBeInTheDocument();
     expect(fetch).toHaveBeenCalledWith(
-      "/api/predict",
+      "/api/predict?include_detections=true",
       expect.objectContaining({ method: "POST", signal: expect.any(AbortSignal) }),
     );
     expect(fetch.mock.calls[0][1].body.get("file")).toBe(image);
@@ -70,6 +72,9 @@ describe("risk assessment", () => {
         risk: "unknown",
         image_id: "img-unknown",
         reason: "No reliable detections were produced.",
+        reason_code: "no_supported_detections",
+
+
         features: {},
         model_versions: {},
       }),
@@ -81,7 +86,40 @@ describe("risk assessment", () => {
 
     expect(await screen.findByText("Review required")).toBeInTheDocument();
     expect(screen.getByText("unknown risk")).toBeInTheDocument();
-    expect(screen.getByText("Insufficient confidence")).toBeInTheDocument();
+    expect(screen.getByText(/no valid road users or traffic signals were detected/i)).toBeInTheDocument();
+  });
+
+  it("renders optional same-image detections and lets the user hide their overlay", async () => {
+    const user = userEvent.setup();
+    fetch.mockResolvedValue(jsonResponse({
+      status: "uncertain", risk: "unknown", image_id: "img-detections",
+      reason: "No conservative rule triggered", reason_code: "no_rule_triggered",
+      features: {}, model_versions: {}, image_size: { width: 100, height: 50 },
+      detections: [{ id: 4, category: "traffic light", bbox: [0.1, 0.2, 0.4, 0.6], confidence: 0.91, traffic_light_color: "unknown" }],
+    }));
+    render(<App />);
+    await selectImage(user);
+    await user.click(screen.getByRole("button", { name: /analyze image/i }));
+
+    expect(await screen.findByRole("img", { name: /1 detected object/i })).toBeInTheDocument();
+    expect(screen.getByText(/rules-only assessment/i)).toBeInTheDocument();
+    await user.click(screen.getByRole("checkbox", { name: /show detected objects/i }));
+    expect(screen.queryByRole("img", { name: /detected objects overlaid/i })).not.toBeInTheDocument();
+  });
+
+  it("rejects malformed detection boxes and safely handles unknown reason codes", async () => {
+    const user = userEvent.setup();
+    fetch.mockResolvedValue(jsonResponse({
+      status: "ok", risk: "low", image_id: "bad-box", reason: "Legacy detail",
+      reason_code: "future_reason_code", features: {}, model_versions: {},
+      image_size: { width: 100, height: 50 },
+      detections: [{ id: 0, category: "car", bbox: [0.8, 0.2, 0.3, 0.6], confidence: 0.5, traffic_light_color: null }],
+    }));
+    render(<App />);
+    await selectImage(user);
+    await user.click(screen.getByRole("button", { name: /analyze image/i }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(/invalid detection details/i);
+    expect(screen.queryByText(/unrecognized reason code/i)).not.toBeInTheDocument();
   });
 
   it.each([
@@ -152,5 +190,21 @@ describe("risk assessment", () => {
     );
 
     await waitFor(() => expect(screen.getByText("Scene analyzed")).toBeInTheDocument());
+  });
+
+  it("cancels an in-flight request and clears any stale overlay", async () => {
+    const user = userEvent.setup();
+    fetch.mockImplementation((_url, { signal }) => new Promise((_resolve, reject) => {
+      signal.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), { once: true });
+    }));
+
+    render(<App />);
+    await selectImage(user);
+    await user.click(screen.getByRole("button", { name: /analyze image/i }));
+    await user.click(screen.getByRole("button", { name: /cancel/i }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Analysis canceled.");
+    expect(screen.queryByRole("img", { name: /detected objects overlaid/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /analyze image/i })).toBeEnabled();
   });
 });

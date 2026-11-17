@@ -22,16 +22,18 @@ class Runtime:
     def __init__(self, _settings, *, failure=None, delay=0):
         self.failure = failure
         self.delay = delay
+        self.detect_calls = 0
 
     def load(self):
         if self.failure == "load":
             raise ModelUnavailableError("missing")
 
     def detect(self, _path):
+        self.detect_calls += 1
         time.sleep(self.delay)
         if isinstance(self.failure, Exception):
             raise self.failure
-        return {"frames": [{"objects": [{"category": "car", "box2d": {"x1": 1, "y1": 1, "x2": 3, "y2": 3}, "attributes": {}}]}]}
+        return {"frames": [{"objects": [{"id": 0, "category": "car", "confidence": 0.82, "box2d": {"x1": 1, "y1": 1, "x2": 3, "y2": 3}, "attributes": {}}]}]}
 
     def predict_risk(self, _features):
         return "low"
@@ -59,8 +61,42 @@ def test_health_ready_and_success_use_uuid_and_cleanup(tmp_path):
     body = response.json()
     assert body["status"] == "ok" and body["risk"] == "low"
     assert body["reason_code"] == "model_prediction"
+    assert "detections" not in body and "image_size" not in body
     assert body["image_id"] not in {"escape", "../../escape"}
     assert not list((tmp_path / "uploads").iterdir())
+
+
+def test_include_detections_returns_normalized_boxes_from_single_detection_pass(tmp_path):
+    runtime = Runtime(settings(tmp_path))
+    app = create_app(settings(tmp_path), lambda _settings: runtime)
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/predict?include_detections=true",
+            files={"file": ("scene.png", image_bytes(size=(20, 20)), "image/png")},
+        )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["image_size"] == {"width": 20, "height": 20}
+    assert body["detections"] == [{
+        "id": 0, "category": "car", "bbox": [0.05, 0.05, 0.15, 0.15],
+        "confidence": 0.82, "traffic_light_color": None,
+    }]
+    assert runtime.detect_calls == 1
+
+
+def test_detection_response_rejects_nonfinite_out_of_range_and_too_many_boxes():
+    from traffic_risk.app import DetectionDetail, PredictionResponse
+
+    with pytest.raises(ValueError):
+        DetectionDetail(id=0, category="car", bbox=(0, 0, float("nan"), 1), confidence=0.5)
+    with pytest.raises(ValueError):
+        DetectionDetail(id=0, category="car", bbox=(0, 0, 1.1, 1), confidence=0.5)
+    with pytest.raises(ValueError):
+        PredictionResponse(
+            status="ok", risk="low", image_id="x", reason="ok", features={}, model_versions={},
+            detections=[{"id": i, "category": "car", "bbox": (0, 0, 1, 1), "confidence": 0.5}
+                        for i in range(301)],
+        )
 
 
 def test_openapi_version_matches_installed_package(tmp_path):

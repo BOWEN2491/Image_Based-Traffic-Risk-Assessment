@@ -198,7 +198,7 @@ class ModelRuntime:
         if image is None:
             raise PerceptionError("Image could not be decoded")
         try:
-            result = self.yolo.predict(source=str(image_path), conf=0.25, iou=0.45,
+            result = self.yolo.predict(source=str(image_path), conf=0.25, iou=0.45, max_det=300,
                                        device=self.settings.device, verbose=False)[0]
             names = result.names
             objects: list[dict[str, Any]] = []
@@ -218,6 +218,7 @@ class ModelRuntime:
                 if category not in supported:
                     continue
                 coords = detected.xyxy.cpu().numpy().reshape(-1).tolist()
+                confidence = float(detected.conf.item())
                 color = "unknown"
                 if category == "traffic light" and self.settings.mode == "models":
                     color = self._traffic_light_color(image, tuple(round(value) for value in coords))
@@ -225,6 +226,7 @@ class ModelRuntime:
                     {
                         "id": identifier,
                         "category": category,
+                        "confidence": confidence,
                         "attributes": {"trafficLightColor": color},
                         "box2d": dict(zip(("x1", "y1", "x2", "y2"), map(float, coords), strict=True)),
                     }
