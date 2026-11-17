@@ -123,6 +123,22 @@ describe("risk assessment", () => {
   });
 
   it.each([
+    ["future_reason_code", "Service-specific note"],
+    [undefined, "Legacy service reason"],
+  ])("keeps the original explanation for reason code %s", async (reason_code, reason) => {
+    const user = userEvent.setup();
+    fetch.mockResolvedValue(jsonResponse({
+      status: "uncertain", risk: "unknown", image_id: "legacy-reason", reason,
+      ...(reason_code ? { reason_code } : {}), features: {}, model_versions: {},
+    }));
+    render(<App />);
+    await selectImage(user);
+    await user.click(screen.getByRole("button", { name: /analyze image/i }));
+    expect(await screen.findByText(reason)).toBeInTheDocument();
+    if (reason_code) expect(screen.getByText(/unrecognized reason code \(future_reason_code\)/i)).toBeInTheDocument();
+  });
+
+  it.each([
     [422, { detail: { code: "invalid_image", message: "Image dimensions are invalid" } }, "Image dimensions are invalid"],
     [503, { detail: { code: "service_busy", message: "Inference queue is full" } }, "Inference queue is full"],
   ])("shows a structured %s API error", async (status, payload, message) => {
