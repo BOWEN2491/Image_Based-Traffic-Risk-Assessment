@@ -21,23 +21,36 @@ def smoke(wheel: Path, lock: Path) -> None:
         working.mkdir()
         venv.EnvBuilder(with_pip=True).create(environment)
         python = environment / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+        env = isolated_subprocess_environment()
         subprocess.run(
             [str(python), "-m", "pip", "install", "--no-deps", "-r", str(lock)],
             check=True,
             cwd=working,
+            env=env,
         )
         subprocess.run(
             [str(python), "-m", "pip", "install", "--no-deps", str(wheel)],
             check=True,
             cwd=working,
+            env=env,
         )
-        verify_installed(python, working)
+        verify_installed(python, working, env=env)
 
 
-def verify_installed(python: Path, working: Path) -> None:
+def isolated_subprocess_environment() -> dict[str, str]:
+    """Remove source/config overrides while keeping the normal process environment."""
+    return {
+        key: value
+        for key, value in os.environ.items()
+        if key.upper() != "PYTHONPATH" and not key.upper().startswith("RISK_")
+    }
+
+
+def verify_installed(python: Path, working: Path, *, env: dict[str, str] | None = None) -> None:
     """Verify the current wheel installation without importing a source checkout."""
+    env = env if env is not None else isolated_subprocess_environment()
     scripts = python.parent
-    subprocess.run([str(python), "-m", "pip", "check"], check=True, cwd=working)
+    subprocess.run([str(python), "-m", "pip", "check"], check=True, cwd=working, env=env)
     check = (
             "import json; from importlib.metadata import distributions; from importlib.resources import files; "
             "from pathlib import Path; "
@@ -50,10 +63,10 @@ def verify_installed(python: Path, working: Path) -> None:
             "assert opencv == ['opencv-python'], opencv; "
             "print(json.dumps({'model_dir': str(s.model_dir), 'upload_dir': str(s.upload_dir)}))"
     )
-    subprocess.run([str(python), "-c", check], check=True, cwd=working)
+    subprocess.run([str(python), "-c", check], check=True, cwd=working, env=env)
     for command in ("traffic-risk",):
         executable = scripts / (f"{command}.exe" if os.name == "nt" else command)
-        subprocess.run([str(executable), "--help"], check=True, cwd=working)
+        subprocess.run([str(executable), "--help"], check=True, cwd=working, env=env)
 
 
 def main() -> None:
