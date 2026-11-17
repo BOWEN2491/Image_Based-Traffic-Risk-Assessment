@@ -7,18 +7,20 @@ import json
 import logging
 import math
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any, Protocol, runtime_checkable
 
-from .build_features import build_features_from_bdd
+from .build_features import build_features_from_bdd, compute_features
 from .config import Settings
 from .hard_rules import apply_hard_rules, apply_signal_policy
 from .model_runtime import ModelRuntime, ModelUnavailableError, PerceptionError
 from .schema import FeatureSchemaError, public_features, validate_model_features
+from .image_io import DecodedImage, decode_image
 
 
 LOGGER = logging.getLogger(__name__)
 
 
+@runtime_checkable
 class Runtime(Protocol):
     versions: dict[str, str]
 
@@ -26,23 +28,46 @@ class Runtime(Protocol):
     def predict_risk(self, features: dict[str, Any]) -> str: ...
 
 
+@runtime_checkable
+class DecodedRuntime(Runtime, Protocol):
+    def detect_image(self, image: DecodedImage) -> dict[str, Any]: ...
+
+
 def run_single_image(
     image_path: str | Path, runtime: Runtime, *, include_detections: bool = False
 ) -> dict[str, Any]:
     path = Path(image_path)
+    return _run_detected(path, runtime, include_detections)
+
+
+def _run_detected(
+    path: Path,
+    runtime: Runtime,
+    include_detections: bool,
+) -> dict[str, Any]:
     phase = "features"
     details = None
+    decoded: DecodedImage | None = None
     try:
-        detected = runtime.detect(path)
+        if isinstance(runtime, DecodedRuntime):
+            decoded = decode_image(path)
+            detected = runtime.detect_image(decoded)
+        else:
+            detected = runtime.detect(path)
         frames = detected.get("frames", [])
         objects = frames[0].get("objects", []) if frames else []
-        details = _detection_details(path, objects) if include_detections else None
+        if include_detections:
+            details = (_detection_details_from_size(objects, decoded.width, decoded.height)
+                       if decoded is not None else _detection_details(path, objects))
         if not objects:
             return _with_detection_details(
                 _uncertain("No supported road users or signals were detected", runtime, reason_code="no_supported_detections"),
                 details,
             )
-        features = build_features_from_bdd(detected, path)
+        if decoded is None:
+            features = build_features_from_bdd(detected, path)
+        else:
+            features = compute_features(objects, decoded.height, decoded.width)
         validate_model_features(features)
         override, reason = apply_hard_rules(features)
         risk = override
@@ -102,6 +127,11 @@ def _detection_details(image_path: Path, objects: list[dict[str, Any]]) -> dict[
     with Image.open(image_path) as source:
         oriented = ImageOps.exif_transpose(source)
         width, height = oriented.size
+    return _detection_details_from_size(objects, width, height)
+
+
+def _detection_details_from_size(objects: list[dict[str, Any]], width: int, height: int) -> dict[str, Any]:
+    """Build bounded normalized overlay data using known oriented dimensions."""
     detections = []
     for obj in objects[:300]:
         box = obj.get("box2d", {})

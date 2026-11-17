@@ -19,6 +19,17 @@ THRESHOLDS = {
     "mean_iou_high": 0.012615208626149536,
 }
 
+RULE_REASONS = {
+    "central_red_signal": "Central traffic light is red",
+    "near_person": "A pedestrian is detected in the near zone",
+    "person_forward_zone": "A pedestrian is very close in the forward zone",
+    "vehicle_extremely_close": "A vehicle is extremely close",
+    "multiple_near_vehicles": "Multiple vehicles are close",
+    "center_blockage": "Vehicles block the center region",
+    "high_congestion": "The scene is highly congested",
+    "substantial_vehicle_overlap": "Close vehicles overlap substantially",
+}
+
 
 def _number(row: Mapping[str, Any], key: str, default: float = 0.0) -> float:
     try:
@@ -28,31 +39,32 @@ def _number(row: Mapping[str, Any], key: str, default: float = 0.0) -> float:
     return value if math.isfinite(value) else default
 
 
-def apply_hard_rules(row: Mapping[str, Any]) -> tuple[str | None, str | None]:
-    """Return a high-risk override, or ``(None, None)`` for model evaluation."""
+def _trace_hard_rules(row: Mapping[str, Any]) -> list[str]:
+    """Return all matching internal rule IDs in the production priority order."""
+    matches: list[str] = []
     if _number(row, "central_tl_is_red") == 1:
-        return "high", "Central traffic light is red"
+        matches.append("central_red_signal")
     if _number(row, "near_person_count") >= 1:
-        return "high", "A pedestrian is detected in the near zone"
+        matches.append("near_person")
     if (
         _number(row, "max_box_area_person") >= THRESHOLDS["person_area_near_strict"]
         and _number(row, "bottom_half_person_ratio") >= THRESHOLDS["bottom_half_min"]
     ):
-        return "high", "A pedestrian is very close in the forward zone"
+        matches.append("person_forward_zone")
     if _number(row, "max_box_area_vehicle") >= THRESHOLDS["vehicle_area_near"]:
-        return "high", "A vehicle is extremely close"
+        matches.append("vehicle_extremely_close")
     if _number(row, "near_vehicle_count") >= THRESHOLDS["near_vehicle_count"]:
-        return "high", "Multiple vehicles are close"
+        matches.append("multiple_near_vehicles")
     if (
         _number(row, "center_region_vehicle_ratio") >= THRESHOLDS["center_block_ratio"]
         and _number(row, "sum_box_area_vehicle") >= THRESHOLDS["vehicle_sum_for_block"]
     ):
-        return "high", "Vehicles block the center region"
+        matches.append("center_blockage")
     if (
         _number(row, "object_density_per_mp") >= THRESHOLDS["density_high"]
         and _number(row, "sum_box_area_vehicle") >= THRESHOLDS["vehicle_sum_for_dense"]
     ):
-        return "high", "The scene is highly congested"
+        matches.append("high_congestion")
     if (
         _number(row, "mean_overlap_iou") >= THRESHOLDS["mean_iou_high"]
         and (
@@ -60,7 +72,22 @@ def apply_hard_rules(row: Mapping[str, Any]) -> tuple[str | None, str | None]:
             or _number(row, "near_vehicle_count") >= 2
         )
     ):
-        return "high", "Close vehicles overlap substantially"
+        matches.append("substantial_vehicle_overlap")
+    return matches
+
+
+def trace_hard_rules(row: Mapping[str, Any]) -> dict[str, Any]:
+    """Return internal rule trace data without changing the public decision API."""
+    matches = _trace_hard_rules(row)
+    return {"matches": matches, "first_match": matches[0] if matches else None}
+
+
+def apply_hard_rules(row: Mapping[str, Any]) -> tuple[str | None, str | None]:
+    """Return a high-risk override, or ``(None, None)`` for model evaluation."""
+    first = _trace_hard_rules(row)
+    if first:
+        rule_id = first[0]
+        return "high", RULE_REASONS[rule_id]
     return None, None
 
 

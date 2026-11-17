@@ -121,6 +121,60 @@ def test_optional_detection_details_use_exif_oriented_dimensions_once(tmp_path):
     }]
 
 
+def test_decoded_runtime_reuses_one_image_for_detection_features_and_details(tmp_path, monkeypatch):
+    import cv2
+    from traffic_risk.image_io import DecodedImage
+
+    path = tmp_path / "rotated-once.jpg"
+    exif = Image.Exif()
+    exif[274] = 6
+    Image.new("RGB", (120, 80)).save(path, exif=exif)
+
+    class DecodedTestRuntime(Runtime):
+        def __init__(self, objects):
+            super().__init__(objects)
+            self.image = None
+
+        def detect_image(self, decoded):
+            assert isinstance(decoded, DecodedImage)
+            self.image = decoded
+            return {"frames": [{"objects": self.objects}]}
+
+        def detect(self, _path):
+            raise AssertionError("decoded runtime should use detect_image")
+
+    original = cv2.imread
+    reads = 0
+
+    def counted_imread(*args, **kwargs):
+        nonlocal reads
+        reads += 1
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(cv2, "imread", counted_imread)
+    runtime = DecodedTestRuntime([car()])
+    result = run_single_image(path, runtime, include_detections=True)
+
+    assert reads == 1
+    assert runtime.image.width == 80 and runtime.image.height == 120
+    assert result["image_size"] == {"width": 80, "height": 120}
+    assert result["features"] == run_single_image(path, Runtime([car()]))["features"]
+
+
+def test_decoded_and_legacy_runtime_paths_return_same_public_result(tmp_path):
+    path = image(tmp_path)
+    objects = [car()]
+
+    class DecodedTestRuntime(Runtime):
+        def detect_image(self, decoded):
+            return {"frames": [{"objects": self.objects}]}
+
+    legacy = run_single_image(path, Runtime(objects, "medium"), include_detections=True)
+    decoded = run_single_image(path, DecodedTestRuntime(objects, "medium"), include_detections=True)
+
+    assert decoded == legacy
+
+
 def test_detection_details_are_omitted_by_default(tmp_path):
     assert "detections" not in run_single_image(image(tmp_path), Runtime([car()]))
 
@@ -187,6 +241,7 @@ def test_model_runtime_exports_detector_confidence_for_optional_details(tmp_path
     obj = detected["frames"][0]["objects"][0]
     assert obj["confidence"] == 0.87
     assert detector.kwargs["max_det"] == 300
+    assert isinstance(detector.kwargs["source"], np.ndarray)
 
     class DetectedRuntime(Runtime):
         def detect(self, _path):

@@ -1,0 +1,20 @@
+{
+  "dataset_root": "REPLACE_WITH_DEVELOPMENT_DATASET_ROOT",
+  "performance_manifest": "REPLACE_WITH_FIXED_100_IMAGE_MANIFEST_JSONL",
+  "model_path": "models/yolo/yolo11n.pt",
+  "model_sha256": "REPLACE_WITH_VERIFIED_64_CHARACTER_SHA256",
+  "backend_artifacts": {
+    "openvino-640": "results/cpu-optimization/backend-artifacts/openvino-640/backend_artifact_manifest.json",
+    "openvino-960": "results/cpu-optimization/backend-artifacts/openvino-960/backend_artifact_manifest.json",
+    "onnx-640": "results/cpu-optimization/backend-artifacts/onnx-640/backend_artifact_manifest.json",
+    "onnx-960": "results/cpu-optimization/backend-artifacts/onnx-960/backend_artifact_manifest.json"
+  },
+  "seed": 42,
+  "threads": 2,
+  "warmups": 5,
+  "rounds": 3,
+  "requests_per_client": 20,
+  "budget_per_config_seconds": 900,
+  "time_budget_seconds": 5400,
+  "busy_timeout_seconds": 0.1
+}

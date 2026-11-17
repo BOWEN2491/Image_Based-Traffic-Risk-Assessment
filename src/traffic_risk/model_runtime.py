@@ -14,6 +14,7 @@ import numpy as np
 from .cnn_contract import CLASS_MAPPING, classify_logits, contract, validate_contract, make_model, inference_transform
 from .config import Settings
 from .contracts import ModelManifest
+from .image_io import DecodedImage
 from .schema import MODEL_FEATURES, SCHEMA_VERSION, validate_model_features
 
 
@@ -192,13 +193,21 @@ class ModelRuntime:
         return label
 
     def detect(self, image_path: str | Path) -> dict[str, Any]:
+        """Compatibility adapter for callers that still pass image paths."""
+        from .image_io import decode_image
+
         if self.yolo is None or (self.settings.mode == "models" and self.cnn is None):
             raise ModelUnavailableError("Models are not loaded")
-        image = cv2.imread(str(image_path))
-        if image is None:
-            raise PerceptionError("Image could not be decoded")
+        return self.detect_image(decode_image(image_path))
+
+    def detect_image(self, image: DecodedImage) -> dict[str, Any]:
+        """Run perception over an already decoded OpenCV BGR image."""
+        if self.yolo is None or (self.settings.mode == "models" and self.cnn is None):
+            raise ModelUnavailableError("Models are not loaded")
+        if not isinstance(image, DecodedImage):
+            raise TypeError("detect_image requires a DecodedImage")
         try:
-            result = self.yolo.predict(source=str(image_path), conf=0.25, iou=0.45, max_det=300,
+            result = self.yolo.predict(source=image.bgr, conf=0.25, iou=0.45, max_det=300,
                                        device=self.settings.device, verbose=False)[0]
             names = result.names
             objects: list[dict[str, Any]] = []
@@ -221,7 +230,7 @@ class ModelRuntime:
                 confidence = float(detected.conf.item())
                 color = "unknown"
                 if category == "traffic light" and self.settings.mode == "models":
-                    color = self._traffic_light_color(image, tuple(round(value) for value in coords))
+                    color = self._traffic_light_color(image.bgr, tuple(round(value) for value in coords))
                 objects.append(
                     {
                         "id": identifier,

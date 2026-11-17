@@ -1,0 +1,7 @@
+{
+  "backend": "openvino",
+  "model_path": "models/yolo/yolo11n.pt",
+  "model_sha256": "REPLACE_WITH_VERIFIED_64_CHARACTER_SHA256",
+  "imgsz": 640,
+  "budget_seconds": 900
+}

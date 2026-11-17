@@ -1,0 +1,6 @@
+# Install in an isolated environment after requirements-cpu.lock.
+# The lock file supplies CPU PyTorch and Ultralytics 8.4.126.
+numpy==2.3.5
+onnx==1.23.0
+onnxruntime==1.32.0
+openvino==2025.4.1
