@@ -44,11 +44,11 @@ Profiler 目录：`results/cpu-repair/profile-ab-ba-ab/`。12 项任务的 summa
 
 - **分母文案已更正。** 每配置两模式合计 pipeline 600 与顺序 API 600；false 和 true 各 300。原始逐行计数及 summary 无需改写。
 - **独立后端依赖已显式固定 NumPy。** `requirements-cpu-backend.txt` 固定 `numpy==2.3.5`；默认 `requirements-cpu.lock` 仍保持 2.4.6。
-- **跨平台 CI 已配置。** `.github/workflows/ci.yml` 覆盖 Windows/Linux × Python 3.11/3.12，并会在任意分支 push 时运行；当前提交的 hosted run 需由 push/PR 触发并通过后才能关闭此工程 gate。
+- **跨平台 CI 已通过。** `.github/workflows/ci.yml` 覆盖 Windows/Linux × Python 3.11/3.12，并在任意分支 push 时运行；GitHub Actions CI run #63 对提交 `6487d85` 四个平台组合及前端任务全部通过。
 
 ## 尚未通过的门槛
 
-- Windows/Linux × Python 3.11/3.12 workflow 已配置；本次修改提交后仍需取得 hosted CI 全绿结果，方可完成跨平台维护发布检查。
+- 跨平台维护发布检查已完成：hosted CI run #63 全绿，链接见 `CPU_OPTIMIZATION_REPAIR_STATUS.md`。
 - 来源证明、人工标注/规则复核与新的独立 holdout 仍缺失，模型/检测配置晋级继续阻塞。
 - **这些数据门槛不阻塞维护版本。** 默认模型与风险语义保持不变的维护版本可在工程发布检查通过后单独交付。
 - 验收快照时未创建提交、PR、标签或 Release，也未改变默认模型、依赖锁或业务代码。

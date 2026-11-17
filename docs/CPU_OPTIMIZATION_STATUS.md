@@ -98,3 +98,10 @@
 
 - 推送提交 `58d2211` 后，GitHub Actions CI run #61 已启动；Ubuntu Python 3.11 和 3.12 在 compileall 阶段失败，原因为三份 Python 文件的换行被意外序列化成字面量 `\n`。
 - 已从 Git 对象恢复有效文件。本机 compileall、Ruff 和 `git diff --check` 通过；修复提交推送后需重新检查完整四平台矩阵。维护发布 gate 仍为 pending CI。
+
+
+## 跨平台 CI 最终结果（2026-11-17）
+
+- GitHub Actions CI run #63（提交 `6487d85`）完成且全绿：Ubuntu/Windows × Python 3.11/3.12 四个任务及前端 Node 20 任务均成功。
+- 本机 Windows/Python 3.11 全量 Python suite 292 passed、覆盖率 84.55%；Ruff、compileall 和 diff 检查通过。
+- 维护发布工程 gate 已通过；source provenance、独立 holdout、人工复核仍是模型晋级专属阻塞项。

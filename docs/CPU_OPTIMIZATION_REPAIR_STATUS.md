@@ -10,7 +10,7 @@
 | R3 / F3 超时与完成状态 | verified | tools/profile_pipeline.py, tests/test_profile_pipeline.py | 定向 repair suite 55 passed；完整 suite 292 passed；AB/BA/AB profiler 12/12 tasks complete | Deadline cancel/join、冻结分母、保守处理失败和逐行 partial JSONL 均验证。 |
 | R4 / F4 实际路径 profiler 插桩 | verified | tools/profile_pipeline.py, tests/test_profile_pipeline.py | legacy 与 decoded 两条源码路径，各完成固定 100 样本×3 单轮/模式；必需阶段无 missing；实际模块路径和 SHA 已记录 | 覆盖实际 DetectionPredictor NMS、旧/新 decode/runtime、特征、规则和 overlay；进程内 ASGI，不代表网络浏览器延迟。 |
 | R5 / F5 轮换日程与严格聚合 | verified | tools/compare_cpu_backends.py, tests/test_compare_cpu_backends.py, tests/test_backend_artifacts.py | schema-v2 run 完整：18 正式 + 6 并发任务；每配置 pipeline 600 合计（false/true 各 300），顺序 API 600 合计（各 300 成功）；API 总计 920 行/配置 | `measurement_complete=true`；round stability pass；exact feature parity/performance gates 未通过，候选保持 `not_adopted`。 |
-| R6 本地验证与正式重测 | verified | docs/CPU_PERFORMANCE_REPORT.md, docs/CPU_BACKEND_EXPERIMENT.md, docs/INDEPENDENT_EVALUATION_PROTOCOL.md, docs/CPU_OPTIMIZATION_STATUS.md, requirements-cpu-backend.txt, .github/workflows/ci.yml, tools/config_templates/compare_cpu_backends.example.json, results/cpu-repair/gate_summary.json | 全量 suite 292 passed / 84.55%；wheel+sdist、pip check、doctor、smoke-rules、Ruff、compileall 通过；独立后端安装验证 NumPy 2.3.5 | CI run #61（提交 58d2211）已触发；Ubuntu Python 3.11/3.12 在 compileall 因提交中三份 Python 文件换行被序列化为字面量 \n 而失败。原始文件已恢复，本机 compileall、Ruff 和 diff 检查通过；Windows 两个矩阵任务当时仍在运行。需推送恢复提交并以新 run 结果关闭工程 gate。 |
+| R6 本地验证与正式重测 | verified | docs/CPU_PERFORMANCE_REPORT.md, docs/CPU_BACKEND_EXPERIMENT.md, docs/INDEPENDENT_EVALUATION_PROTOCOL.md, docs/CPU_OPTIMIZATION_STATUS.md, requirements-cpu-backend.txt, .github/workflows/ci.yml, tools/config_templates/compare_cpu_backends.example.json, results/cpu-repair/gate_summary.json | 全量 suite 292 passed / 84.55%；wheel+sdist、pip check、doctor、smoke-rules、Ruff、compileall 通过；独立后端安装验证 NumPy 2.3.5 | CI run #63（提交 6487d85）全部通过：Ubuntu/Windows × Python 3.11/3.12 与前端任务均成功。run #61 暴露的源码换行格式问题已在 80d807c 修复，Windows/Python 3.11 时钟分辨率测试波动已在 6487d85 改为确定性时钟。 |
 
 ## 基线限制
 
@@ -22,7 +22,7 @@
 
 - `code_fixes_verified=true`：F1–F5 回归和工具检查通过。
 - `measurement_revalidated=true`：Profiler AB/BA/AB 和 schema-v2 后端矩阵完整，且报告与原始摘要一致。
-- `maintenance_release_readiness=pending_ci`：完整 Windows/Linux × Python 3.11/3.12 workflow 已配置，当前提交的 hosted CI 尚未运行。
+- `maintenance_release_readiness=passed`：GitHub Actions CI run #63 对 Ubuntu/Windows × Python 3.11/3.12 全部通过，前端任务也通过。
 - `model_promotion_readiness=blocked`：源数据 provenance、独立 holdout 与人工复核继续阻塞模型晋级；它们不阻止默认模型和风险语义不变的维护版本在工程发布检查通过后单独交付。可选后端仍 `not_adopted`。证据与哈希汇总在 ignored `results/cpu-repair/gate_summary.json`。
 
 ## 自动化续跑核验（2026-11-17 21:51 UTC）
@@ -35,3 +35,10 @@
 
 - CI run #61 发现并确认换行格式回归：`tests/test_backend_artifacts.py`、`tests/test_image_io.py`、`tools/compare_cpu_backends.py` 的源码换行被意外写成文本 `\n`，Ubuntu compileall 失败。
 - 从 Git 对象恢复了这些文件的有效源码及状态文档，本机 `compileall -q src tests tools`、`ruff check src tests tools`、`git diff --check` 均通过。修复需单独提交、推送并等待新的 Windows/Linux × Python 3.11/3.12 CI 全绿。
+
+
+## 工程发布 CI 最终结果（2026-11-17）
+
+- Hosted CI run [#63](https://github.com/BOWEN2491/Image_Based-Traffic-Risk-Assessment/actions/runs/44189355693) 对提交 `6487d85` 全绿：Python 3.11/3.12 × Ubuntu/Windows 四个矩阵任务成功，前端 Node 20 任务成功。
+- 本机 Windows/Python 3.11 全量 suite 为 292 passed、覆盖率 84.55%；Ruff、compileall、pip check 通过。
+- `maintenance_release_readiness=passed`；来源 provenance、独立 holdout 与人工复核仍只阻塞模型晋级，默认模型和风险语义不变的维护版本可独立交付。
