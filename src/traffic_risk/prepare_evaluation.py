@@ -146,10 +146,10 @@ def audit_cross_manifest(current: list[dict], prior_rows: list[tuple[str, list[d
             current_roles = current_index[field][value]
             details = {"field": field, "identity_sha256": hashlib.sha256(value.encode()).hexdigest(),
                        "prior_roles": sorted(prior_roles), "current_roles": sorted(current_roles)}
-            if prior_roles.isdisjoint(current_roles):
-                conflicts.append(details)
-            else:
+            if prior_roles & current_roles:
                 overlaps.append(details)
+            if any(prior_role != current_role for prior_role in prior_roles for current_role in current_roles):
+                conflicts.append(details)
     return {
         "schema_version": 1,
         "prior_manifest_names": sorted(name for name, _rows in prior_rows),

@@ -206,6 +206,17 @@ def test_cross_manifest_audit_detects_identity_group_and_pixel_role_conflicts():
     assert {row["field"] for row in audit["cross_role_conflicts"]} == {"sample_id", "group_id", "pixel_sha256"}
 
 
+def test_cross_manifest_audit_reports_mixed_role_overlap_and_conflict():
+    current = [{"sample_id": "val/a", "group_id": "ride:1", "pixel_sha256": "abc", "split": "development"}]
+    prior = [("old.jsonl", [
+        {"sample_id": "val/a", "group_id": "ride:1", "pixel_sha256": "abc", "split": "development"},
+        {"sample_id": "val/a", "group_id": "ride:1", "pixel_sha256": "abc", "split": "holdout"},
+    ])]
+    audit = audit_cross_manifest(current, prior)
+    assert audit["same_role_overlap_count"] == 3
+    assert audit["cross_role_conflict_count"] == 3
+
+
 @pytest.mark.parametrize("command,module", [
     ("prepare-evaluation", "prepare_evaluation"),
     ("evaluate-detection", "evaluate_detection"),
