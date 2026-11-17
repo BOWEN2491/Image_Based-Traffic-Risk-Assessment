@@ -386,6 +386,7 @@ def test_runtime_detects_supported_objects(tmp_path):
         def item(self): return self.value
     class Box:
         cls = Scalar(0)
+        conf = Scalar(0.9)
         xyxy = type("Coords", (), {"cpu": lambda self: self, "numpy": lambda self: np.array([[1, 1, 10, 10]])})()
     class Result:
         names = {0: "car", 1: "unknown"}
