@@ -7,7 +7,9 @@ from types import SimpleNamespace
 from PIL import Image
 import pytest
 
-from traffic_risk.prepare_evaluation import COLORS, group_split, prepare
+from traffic_risk.prepare_evaluation import (COLORS, audit_cross_manifest,
+                                             group_split, prepare,
+                                             validate_provenance_record)
 
 
 def sample(root, split, name, ride, *, color="red", duplicate=None, bad_box=False):
@@ -133,6 +135,75 @@ def test_time_budget_saves_partial_manifests(tmp_path, monkeypatch):
     assert result["stop_reason"] == "preparation time budget reached"
     assert result["image_counts"] == {}
     assert (output / "summary.json").is_file()
+
+
+def test_frame_context_object_attributes_and_support_are_reported(tmp_path):
+    root = tmp_path / "source"
+    sample(root, "val", "v", "v")
+    labels = root / "bdd100k_labels/100k/val/v.json"
+    payload = json.loads(labels.read_text())
+    payload["attributes"] = {"weather": "rainy", "scene": "city street", "timeofday": "night"}
+    payload["frames"][0]["objects"][0]["attributes"].update({"occluded": True, "truncated": False})
+    labels.write_text(json.dumps(payload))
+    sample(root, "train", "t", "t")
+    output = tmp_path / "out"
+    result = prepare(root, output, max_images=1, max_crops=4)
+    image = next(row for row in rows(output / "images.jsonl") if row["source_split"] == "val")
+    obj = image["objects"][0]
+    assert image["frame_attributes"] == {"weather": "rainy", "scene": "city street", "timeofday": "night"}
+    assert obj["attributes"] == {"occluded": True, "truncated": False}
+    role = image["split"]
+    support = result["evaluation_support"][role]
+    assert support["traffic_light_color_counts"]["red"] == 1
+    assert support["traffic_light_color_shortfalls"]["red"] == 99
+    assert support["ground_truth_bbox_area_counts"][obj["bbox_size"]] == 1
+    assert support["context_counts"]["weather"]["rainy"] == 1
+    assert support["ground_truth_object_attribute_counts"]["occluded"][True] == 1
+    assert support["ground_truth_object_attribute_counts"]["truncated"][False] == 1
+    assert image["provenance"] == "local-unverified"
+    assert image["annotation_review"] == "awaiting-human-review"
+
+
+def test_provenance_validation_defaults_and_requires_attestation_fields():
+    record = validate_provenance_record(None)
+    assert record["source_status"] == "local-unverified"
+    assert record["annotation_review"]["status"] == "awaiting-human-review"
+    partial = validate_provenance_record({**record, "provider": "BDD", "archive_id": "known-local-copy"})
+    assert partial["provider"] == "BDD"
+    assert partial["source_status"] == "local-unverified"
+    with pytest.raises(ValueError, match="source_url"):
+        validate_provenance_record({**record, "source_url": "not-a-url"})
+    with pytest.raises(ValueError, match="source_archive_sha256"):
+        validate_provenance_record({**record, "source_archive_sha256": "not-a-digest"})
+    with pytest.raises(ValueError, match="requires provider"):
+        validate_provenance_record({**record, "source_status": "source-verified"})
+
+
+def test_source_verified_requires_named_human_attestation():
+    record = {
+        "schema_version": 1,
+        "source_status": "source-verified",
+        "provider": "Example Dataset Provider",
+        "archive_id": "archive-v1",
+        "source_url": "https://example.org/archive",
+        "acquired_date": "2026-01-01",
+        "acquisition_and_conversion": ["Downloaded archive", "Extracted images and labels"],
+        "source_archive_sha256": "a" * 64,
+        "verified_by": "Human Reviewer",
+        "verified_date": "2026-01-02",
+        "annotation_review": {"status": "not-reviewed", "reviewer": None, "reviewed_date": None, "scope": None},
+    }
+    assert validate_provenance_record(record)["source_status"] == "source-verified"
+    with pytest.raises(ValueError, match="requires provider"):
+        validate_provenance_record({**record, "verified_by": None})
+
+
+def test_cross_manifest_audit_detects_identity_group_and_pixel_role_conflicts():
+    current = [{"sample_id": "val/a", "group_id": "ride:1", "pixel_sha256": "abc", "split": "holdout"}]
+    prior = [("old.jsonl", [{"sample_id": "val/a", "group_id": "ride:1", "pixel_sha256": "abc", "split": "development"}])]
+    audit = audit_cross_manifest(current, prior)
+    assert audit["cross_role_conflict_count"] == 3
+    assert {row["field"] for row in audit["cross_role_conflicts"]} == {"sample_id", "group_id", "pixel_sha256"}
 
 
 @pytest.mark.parametrize("command,module", [
