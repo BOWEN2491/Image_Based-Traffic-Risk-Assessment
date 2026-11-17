@@ -1,6 +1,6 @@
 # Image-Based Traffic Risk Assessment
 
-> **v0.2.3 maintenance release:** the public runtime defaults to `RISK_MODE=rules`. It reuses the verified v0.2.1 public YOLO asset bundle. The withdrawn v0.1.0 assets remain retained for audit, while BDD100K-derived CNN/XGBoost weights remain local-only and are not redistributed. See [docs/MODELS.md](docs/MODELS.md) for the asset contract and provenance limits.
+> **v0.3.0 release candidate:** the public runtime still defaults to `RISK_MODE=rules` and reuses the verified v0.2.1 public YOLO asset bundle. This update adds auditable evaluation provenance and rare-scene support reporting, bounded detector error analysis and CPU comparisons, plus opt-in same-inference detection overlays. The evaluation source remains locally unverified, and these changes make no claim of improved risk accuracy. BDD100K-derived CNN/XGBoost weights remain local-only and are not redistributed. See [docs/MODELS.md](docs/MODELS.md) for the asset contract and provenance limits.
 
 An open research and teaching demo that estimates a coarse scene-risk category from a single road image. The pipeline combines YOLO object detection, a traffic-light colour classifier, structured scene features, deterministic rules, and an XGBoost classifier behind a FastAPI API and React interface.
 
