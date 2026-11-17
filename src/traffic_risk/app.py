@@ -8,15 +8,16 @@ import logging
 import warnings
 from collections.abc import Callable
 from contextlib import asynccontextmanager
+from functools import partial
 from pathlib import Path
 from typing import Any, Literal
 from uuid import uuid4
 
 import anyio
-from fastapi import FastAPI, File, HTTPException, Request, UploadFile
+from fastapi import FastAPI, File, HTTPException, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image, UnidentifiedImageError
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, Field, FiniteFloat, PositiveInt, model_validator
 
 from . import __version__
 from .config import Settings
@@ -28,6 +29,33 @@ LOGGER = logging.getLogger(__name__)
 ALLOWED_MIME = {"image/jpeg": "JPEG", "image/png": "PNG", "image/webp": "WEBP"}
 FORMAT_SUFFIX = {"JPEG": ".jpg", "PNG": ".png", "WEBP": ".webp"}
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
+
+
+class ImageSize(BaseModel):
+    width: PositiveInt
+    height: PositiveInt
+
+
+class DetectionDetail(BaseModel):
+    id: int = Field(ge=0)
+    category: Literal[
+        "person", "bicycle", "motorcycle", "car", "bus", "truck", "train",
+        "traffic light", "traffic sign",
+    ]
+    bbox: tuple[FiniteFloat, FiniteFloat, FiniteFloat, FiniteFloat]
+    confidence: FiniteFloat = Field(ge=0, le=1)
+    traffic_light_color: Literal["green", "red", "yellow", "unknown"] | None = None
+
+    @model_validator(mode="after")
+    def validate_box(self) -> DetectionDetail:
+        x1, y1, x2, y2 = self.bbox
+        if not (0 <= x1 <= x2 <= 1 and 0 <= y1 <= y2 <= 1):
+            raise ValueError("bbox must be normalized ordered xyxy coordinates")
+        if self.category != "traffic light" and self.traffic_light_color is not None:
+            raise ValueError("only traffic lights may include a color")
+        if self.category == "traffic light" and self.traffic_light_color is None:
+            raise ValueError("traffic lights must include a recognized color or unknown")
+        return self
 
 
 class PredictionResponse(BaseModel):
@@ -42,6 +70,8 @@ class PredictionResponse(BaseModel):
     ] = "legacy_unspecified"
     features: dict[str, Any]
     model_versions: dict[str, str]
+    image_size: ImageSize | None = None
+    detections: list[DetectionDetail] | None = Field(default=None, max_length=300)
 
     @model_validator(mode="after")
     def status_matches_risk(self) -> PredictionResponse:
@@ -152,8 +182,12 @@ def create_app(
             raise _error(503, "model_unavailable", "Models are not ready")
         return {"status": "ready", "mode": config.mode}
 
-    @application.post("/api/predict", response_model=PredictionResponse)
-    async def predict(request: Request, file: UploadFile = File(...)) -> PredictionResponse:
+    @application.post("/api/predict", response_model=PredictionResponse, response_model_exclude_unset=True)
+    async def predict(
+        request: Request,
+        file: UploadFile = File(...),
+        include_detections: bool = Query(default=False),
+    ) -> PredictionResponse:
         temp_path: Path | None = None
         acquired = False
         try:
@@ -178,11 +212,12 @@ def create_app(
                 acquired = True
             except TimeoutError as exc:
                 raise _error(503, "service_busy", "Inference service is busy") from exc
-            result = await anyio.to_thread.run_sync(
+            result = await anyio.to_thread.run_sync(partial(
                 run_single_image,
                 temp_path,
                 request.app.state.runtime,
-            )
+                include_detections=include_detections,
+            ))
             return PredictionResponse(image_id=image_id, **result)
         except HTTPException:
             raise
